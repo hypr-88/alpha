@@ -1,1 +1,2 @@
-# alpha
+# AutoMl-Zero for Financial Markets 
+
