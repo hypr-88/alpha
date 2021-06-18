@@ -12,6 +12,8 @@ from Backtest import backtest
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+from os import listdir
+
 class AlphaEvolve():
     '''
     Main class to run alpha evolve
@@ -221,7 +223,7 @@ class AlphaEvolve():
             the ration of validation data. The default is 0.1.
         TimeBudget : tuple, optional
             the time to evolve. (days, hours, minutes, seconds). The default is (1, 0, 0, 0).
-
+        
         Returns
         -------
         None.
@@ -353,12 +355,11 @@ class AlphaEvolve():
 
         '''
         self.data = {}
-        SP500 = pd.read_csv('SP500.csv')
-        for i in range(len(SP500)):
-            symbol = SP500['Symbol'][i]
-            industry = SP500['Sector'][i]
+        self.symbolList = [symbol.split('.')[0] for symbol in listdir('RawData/')]
+        
+        for symbol in self.symbolList:
+            industry = 1
             self.data[symbol] = industry, pd.read_csv('RawData/' + symbol + '.csv')
-        self.symbolList = list(self.data.keys())
         
     def preparedData(self):
         '''
