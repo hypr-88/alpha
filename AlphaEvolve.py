@@ -12,7 +12,8 @@ from Backtest import backtest
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-from os import listdir
+from zipfile import ZipFile
+import os
 
 class AlphaEvolve():
     '''
@@ -201,7 +202,8 @@ class AlphaEvolve():
     run()
         run the alpha evolve
     '''
-    def __init__(self, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 1, trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0)):
+    def __init__(self, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 1,
+                 trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', file: str = "may_premium_dataset_BTC.zip"):
         '''
         Method used to initiate AlphaEvolve
 
@@ -232,6 +234,10 @@ class AlphaEvolve():
         self.startTime = datetime.now()
         days, hours, minutes, seconds = TimeBudget
         self.endTime = self.startTime + relativedelta(days = days, hours = hours, minutes = minutes, seconds = seconds)
+        
+        self.frequency = frequency
+        self.file = file
+        
         
         self.populationLength = population
         self.tournamentLength = tournament
@@ -355,11 +361,52 @@ class AlphaEvolve():
 
         '''
         self.data = {}
-        self.symbolList = [symbol.split('.')[0] for symbol in listdir('RawData/')]
+        with ZipFile(self.file, "r") as zip_ref:
+           # Get list of files names in zip
+           list_of_files = zip_ref.namelist()
         
-        for symbol in self.symbolList:
-            industry = 1
-            self.data[symbol] = industry, pd.read_csv('RawData/' + symbol + '.csv')
+           # Iterate over the list of file names in given list
+           for elem in list_of_files:
+               #get the symbol
+               symbol = os.path.splitext(elem)[0]
+               
+               #read csv
+               with zip_ref.open(symbol+'.csv') as f:
+                   df = pd.read_csv(f)
+                   
+                   #drop columns
+                   df.drop(columns = ['Unnamed: 0', 'close_time', 'number_trades', 'asset'], inplace = True)
+                   
+                   #rename the rest columns
+                   df.columns = ['time', 'open', 'high', 'low', 'close', 'volume']
+                   #change time: str -> datetime
+                   df['time'] = pd.to_datetime(df['time'])
+                   
+                   #grouped data to with frequency
+                   new_df = pd.DataFrame()
+                   new_df['open'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['open'].first()
+                   new_df['high'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['high'].max()
+                   new_df['low'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['low'].min()
+                   new_df['close'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['close'].last()
+                   new_df['volume'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['volume'].sum()
+                   
+                   #drop nan
+                   new_df.dropna(inplace = True)
+                   
+                   #filter data have start date before 2020 and end date on 2021-5-31
+                   if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2020, 1, 1):
+                       self.data[symbol] = new_df
+        
+        self.symbolList = list(self.data.keys())
+        
+        #get intersection trading date of all symbols
+        idx = list(self.data.values())[0].index
+        for symbol, df in self.data.items():
+            idx = idx.intersection(df.index)
+        
+        for symbol, df in self.data.items():
+            self.data[symbol] = df.loc[idx]
+            print('success', symbol)
         
     def preparedData(self):
         '''
@@ -374,7 +421,7 @@ class AlphaEvolve():
             
         for symbol in self.symbolList:
             # features
-            df = self.data[symbol][1]
+            df = self.data[symbol]
             df['EMA5'] = EMA(df['close'], 5)
             df['EMA10'] = EMA(df['close'], 10)
             df['EMA20'] = EMA(df['close'], 20)
@@ -411,8 +458,8 @@ class AlphaEvolve():
         if i<self.window:
             return None
         else:
-            X = self.data[symbol][1][self.featuresList].iloc[i-self.window:i]
-            y = self.data[symbol][1]['return'].iloc[i]
+            X = self.data[symbol][self.featuresList].iloc[i-self.window:i]
+            y = self.data[symbol]['return'].iloc[i]
             return np.array(X, dtype = np.float32), np.array(y, dtype = np.float32)
         
     def initiatePopulation(self):
@@ -1906,7 +1953,7 @@ class AlphaEvolve():
                     scalarInput.updateValue(1)
                 self.OperandsValues[Inputs[0]][i] = scalarInput.value
                    
-            df = pd.DataFrame({'Scalar':self.OperandsValues[Inputs[0]], 'Industry': [self.data[symbol][0] for symbol in self.symbolList]})
+            df = pd.DataFrame({'Scalar':self.OperandsValues[Inputs[0]], 'Industry': [0 for symbol in self.symbolList]})
             self.OperandsValues[Output] = OP66(df)
         
         if op == 67:
@@ -1918,7 +1965,7 @@ class AlphaEvolve():
                     scalarInput.updateValue(1)
                 self.OperandsValues[Inputs[0]][i] = scalarInput.value
                    
-            df = pd.DataFrame({'Scalar':self.OperandsValues[Inputs[0]], 'Industry': [self.data[symbol][0] for symbol in self.symbolList]})
+            df = pd.DataFrame({'Scalar':self.OperandsValues[Inputs[0]], 'Industry': [0 for symbol in self.symbolList]})
             self.OperandsValues[Output] = OP67(df)
             
 if __name__ == '__main__':    

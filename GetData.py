@@ -2,10 +2,10 @@ from zipfile import ZipFile
 import pandas as pd
 import os
 from os import listdir
+from datetime import datetime
 
 def getData(frequency, file: str = "may_premium_dataset_BTC.zip"):
     allData = {}
-    
     with ZipFile(file, "r") as zip_ref:
        # Get list of files names in zip
        list_of_files = zip_ref.namelist()
@@ -27,12 +27,15 @@ def getData(frequency, file: str = "may_premium_dataset_BTC.zip"):
                new_df['close'] = df.groupby(pd.Grouper(key = 'time', freq = frequency))['close'].last()
                new_df['volume'] = df.groupby(pd.Grouper(key = 'time', freq = frequency))['volume'].sum()
                
-               allData[pairs] = new_df
-    
-    idx = allData.values()[0].index
+               new_df.dropna(inplace = True)
+               if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2020, 1, 1):
+                   allData[pairs] = new_df
+           
+    idx = list(allData.values())[0].index
     
     for pairs, df in allData.items():
         idx = idx.intersection(df.index)
+        print(idx)
     
     for pairs, df in allData.items():
         df = df.loc[idx]
