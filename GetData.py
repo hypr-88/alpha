@@ -28,7 +28,6 @@ def getData(frequency, file: str = "may_premium_dataset_BTC.zip"):
                new_df['volume'] = df.groupby(pd.Grouper(key = 'time', freq = frequency))['volume'].sum()
                
                allData[pairs] = new_df
-               print(allData[pairs])
     
     idx = allData.values()[0].index
     
