@@ -1943,7 +1943,12 @@ class AlphaEvolve():
                    
             df = pd.DataFrame({'Scalar':self.OperandsValues[Inputs[0]]})
             self.OperandsValues[Output] = OP65(df)
-        
+            
+            for i in range(len(self.symbolList)):
+                symbol = self.symbolList[i]
+                scalarOutput = self.kAlphas[symbol].graph.nodes[scalarOutput]
+                scalarOutput.updateValue(self.OperandsValues[Output][i])
+                
         if op == 66:
             for i in range(len(self.symbolList)):
                 symbol = self.symbolList[i]
@@ -1955,6 +1960,11 @@ class AlphaEvolve():
                    
             df = pd.DataFrame({'Scalar':self.OperandsValues[Inputs[0]], 'Industry': [0 for symbol in self.symbolList]})
             self.OperandsValues[Output] = OP66(df)
+            
+            for i in range(len(self.symbolList)):
+                symbol = self.symbolList[i]
+                scalarOutput = self.kAlphas[symbol].graph.nodes[scalarOutput]
+                scalarOutput.updateValue(self.OperandsValues[Output][i])
         
         if op == 67:
             for i in range(len(self.symbolList)):
@@ -1968,6 +1978,11 @@ class AlphaEvolve():
             df = pd.DataFrame({'Scalar':self.OperandsValues[Inputs[0]], 'Industry': [0 for symbol in self.symbolList]})
             self.OperandsValues[Output] = OP67(df)
             
+            for i in range(len(self.symbolList)):
+                symbol = self.symbolList[i]
+                scalarOutput = self.kAlphas[symbol].graph.nodes[scalarOutput]
+                scalarOutput.updateValue(self.OperandsValues[Output][i])
+                
 if __name__ == '__main__':    
     x = AlphaEvolve()
     x.run()
