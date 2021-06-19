@@ -202,7 +202,7 @@ class AlphaEvolve():
     run()
         run the alpha evolve
     '''
-    def __init__(self, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 1,
+    def __init__(self, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 3,
                  trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxLenShapeNode: int = 30,
                  file: str = "may_premium_dataset_USDT.zip"):
         '''
@@ -398,9 +398,7 @@ class AlphaEvolve():
                     #drop nan
                     new_df.dropna(inplace = True)
                     
-                    #filter data have start date before 2020 and end date on 2021-5-31
-                    if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2020, 1, 1):
-                        self.data[symbol] = new_df
+                    self.data[symbol] = new_df
         
         self.symbolList = list(self.data.keys())
         
