@@ -1946,7 +1946,7 @@ class AlphaEvolve():
             
             for i in range(len(self.symbolList)):
                 symbol = self.symbolList[i]
-                scalarOutput = self.kAlphas[symbol].graph.nodes[scalarOutput]
+                scalarOutput = self.kAlphas[symbol].graph.nodes[Output]
                 scalarOutput.updateValue(self.OperandsValues[Output][i])
                 
         if op == 66:
@@ -1963,7 +1963,7 @@ class AlphaEvolve():
             
             for i in range(len(self.symbolList)):
                 symbol = self.symbolList[i]
-                scalarOutput = self.kAlphas[symbol].graph.nodes[scalarOutput]
+                scalarOutput = self.kAlphas[symbol].graph.nodes[Output]
                 scalarOutput.updateValue(self.OperandsValues[Output][i])
         
         if op == 67:
@@ -1980,9 +1980,9 @@ class AlphaEvolve():
             
             for i in range(len(self.symbolList)):
                 symbol = self.symbolList[i]
-                scalarOutput = self.kAlphas[symbol].graph.nodes[scalarOutput]
+                scalarOutput = self.kAlphas[symbol].graph.nodes[Output]
                 scalarOutput.updateValue(self.OperandsValues[Output][i])
                 
-if __name__ == '__main__':    
+if __name__ == '__main__':
     x = AlphaEvolve()
     x.run()
