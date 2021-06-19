@@ -50,7 +50,7 @@ class Alpha():
         Method used to mutate the Graph attribute (Operands/Operations) to generate a new form of graph.
     '''
     
-    def __init__(self, graph: Graph = None, mutateProb: float = 0.9, rf: float = 0.02):
+    def __init__(self, graph: Graph = None, mutateProb: float = 0.9, rf: float = 0.02, maxLenShapeNode: int = 20):
         '''
         Initiate an Alpha given a Graph or create a new Graph for Alpha.
 
@@ -74,7 +74,7 @@ class Alpha():
             self.graph = Graph(rf = rf)
             
         self.mutateProb = mutateProb
-    
+        self.maxLenShapeNode = maxLenShapeNode
     def fingerprint(self):
         '''
         Method used to return fingerPrint of the graph of Alpha
@@ -174,15 +174,15 @@ class Alpha():
                             op = [key, 59, [-1, 1]]
                     
                     if 'v' in key:
-                        length = np.random.randint(2, 20)
+                        length = np.random.randint(2, self.maxLenShapeNode)
                         if np.random.randint(2): #norm(0,1)
                             op = [key, 63, [0, 1, length]]
                         else: #uniform[-1,1]
                             op = [key, 60, [-1, 1, length]]
                     
                     if 'm' in key:
-                        i = np.random.randint(2, 20)
-                        j = np.random.randint(2, 20)
+                        i = np.random.randint(2, self.maxLenShapeNode)
+                        j = np.random.randint(2, self.maxLenShapeNode)
                         if np.random.randint(2): #norm(0,1)
                             op = [key, 64, [0, 1, i, j]]
                         else: #uniform[-1,1]
@@ -225,7 +225,7 @@ class Alpha():
                 
                 if 'v' in op[0]: #vector
                     if self.graph.nodes[op[0]].value is None:
-                        length = np.random.randint(2, 20)
+                        length = np.random.randint(2, self.maxLenShapeNode)
                         if np.random.randint(2): #norm(0,1)
                             op[1] = 63
                             op[2] = [0, 1, length]
@@ -247,8 +247,8 @@ class Alpha():
                 
                 if 'm' in op[0]: #matrix
                     if self.graph.nodes[op[0]].value is None:
-                        i = np.random.randint(2, 20)
-                        j = np.random.randint(2, 20)
+                        i = np.random.randint(2, self.maxLenShapeNode)
+                        j = np.random.randint(2, self.maxLenShapeNode)
                         if np.random.randint(2): #norm(0,1)
                             op[1] = 64
                             op[2] = [0, 1, i, j]
@@ -411,7 +411,7 @@ class Alpha():
                                 operation = [key, op, [node1, node2]]
                             if op == 19: #scalar + int -> vector
                                 node = np.random.choice(ScalarList, size = 1)
-                                i = np.random.randint(2,20)
+                                i = np.random.randint(2,self.maxLenShapeNode)
                                 operation = [key, op, [node, i]]
                             if op in [23,24,25,26,45,48] and len(VectorList)>=2: # vector + vector -> vector
                                 node1, node2 = np.random.choice(VectorList, size = 2)
@@ -446,7 +446,7 @@ class Alpha():
                                 operation = [key, op, [node1, node2]]
                             if op in [32, 33] and len(VectorList)>=1: #vector + int -> matrix
                                 node = np.random.choice(VectorList, size = 1)
-                                i = np.random.randint(2,20)
+                                i = np.random.randint(2,self.maxLenShapeNode)
                                 operation = [key, op, [node, i]]
                             if op in [39, 40, 41, 42, 43, 46, 49] and len(MatrixList)>=2: #matrix + matrix -> matrix
                                 node1, node2 = np.random.choice(MatrixList, size = 2, replace = False)
@@ -557,7 +557,7 @@ class Alpha():
                             operation = [key, op, [node1, node2]]
                         if op == 19: #scalar + int -> vector
                             node = np.random.choice(ScalarList, size = 1)
-                            i = np.random.randint(2,20)
+                            i = np.random.randint(2,self.maxLenShapeNode)
                             operation = [key, op, [node, i]]
                         if op in [23,24,25,26,45,48] and len(VectorList)>=2: # vector + vector -> vector
                             node1, node2 = np.random.choice(VectorList, size = 2)
@@ -591,7 +591,7 @@ class Alpha():
                             operation = [key, op, [node1, node2]]
                         if op in [32, 33] and len(VectorList)>=1: #vector + int -> matrix
                             node = np.random.choice(VectorList, size = 1)
-                            i = np.random.randint(2,20)
+                            i = np.random.randint(2,self.maxLenShapeNode)
                             operation = [key, op, [node, i]]
                         if op in [39, 40, 41, 42, 43, 46, 49] and len(MatrixList)>=2: #matrix + matrix -> matrix
                             node1, node2 = np.random.choice(MatrixList, size = 2, replace = False)
@@ -746,7 +746,7 @@ class Alpha():
                                 operation = [key, op, [node1, node2]]
                             if op == 19: #scalar + int -> vector
                                 node = np.random.choice(ScalarList, size = 1)
-                                i = np.random.randint(2,20)
+                                i = np.random.randint(2,self.maxLenShapeNode)
                                 operation = [key, op, [node, i]]
                             if op in [23,24,25,26,45,48] and len(VectorList)>=2: # vector + vector -> vector
                                 node1, node2 = np.random.choice(VectorList, size = 2)
@@ -781,7 +781,7 @@ class Alpha():
                                 operation = [key, op, [node1, node2]]
                             if op in [32, 33] and len(VectorList)>=1: #vector + int -> matrix
                                 node = np.random.choice(VectorList, size = 1)
-                                i = np.random.randint(2,20)
+                                i = np.random.randint(2,self.maxLenShapeNode)
                                 operation = [key, op, [node, i]]
                             if op in [39, 40, 41, 42, 43, 46, 49] and len(MatrixList)>=2: #matrix + matrix -> matrix
                                 node1, node2 = np.random.choice(MatrixList, size = 2, replace = False)
@@ -892,7 +892,7 @@ class Alpha():
                             operation = [key, op, [node1, node2]]
                         if op == 19: #scalar + int -> vector
                             node = np.random.choice(ScalarList, size = 1)
-                            i = np.random.randint(2,20)
+                            i = np.random.randint(2,self.maxLenShapeNode)
                             operation = [key, op, [node, i]]
                         if op in [23,24,25,26,45,48] and len(VectorList)>=2: # vector + vector -> vector
                             node1, node2 = np.random.choice(VectorList, size = 2)
@@ -926,7 +926,7 @@ class Alpha():
                             operation = [key, op, [node1, node2]]
                         if op in [32, 33] and len(VectorList)>=1: #vector + int -> matrix
                             node = np.random.choice(VectorList, size = 1)
-                            i = np.random.randint(2,20)
+                            i = np.random.randint(2,self.maxLenShapeNode)
                             operation = [key, op, [node, i]]
                         if op in [39, 40, 41, 42, 43, 46, 49] and len(MatrixList)>=2: #matrix + matrix -> matrix
                             node1, node2 = np.random.choice(MatrixList, size = 2, replace = False)
@@ -997,7 +997,7 @@ class Alpha():
             if 'v' in node:
                 if self.graph.nodes[node].value is None:
                     if self.graph.nodes[node].shape is None:
-                        length = np.random.randint(2, 20)
+                        length = np.random.randint(2, self.maxLenShapeNode)
                     else:
                         length = self.graph.nodes[node].shape
                     if np.random.randint(2): #norm(0,1)
@@ -1018,8 +1018,8 @@ class Alpha():
             if 'm' in node:
                 if self.graph.nodes[node].value is None:
                     if self.graph.nodes[node].shape is None:
-                        i = np.random.randint(2, 20)
-                        j = np.random.randint(2, 20)
+                        i = np.random.randint(2, self.maxLenShapeNode)
+                        j = np.random.randint(2, self.maxLenShapeNode)
                     else:
                         i, j = self.graph.nodes[node].shape
                     if np.random.randint(2): #norm(0,1)

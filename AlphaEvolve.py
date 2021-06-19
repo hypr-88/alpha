@@ -203,7 +203,8 @@ class AlphaEvolve():
         run the alpha evolve
     '''
     def __init__(self, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 1,
-                 trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', file: str = "may_premium_dataset_BTC.zip"):
+                 trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxLenShapeNode: int = 30,
+                 file: str = "may_premium_dataset_USDT.zip"):
         '''
         Method used to initiate AlphaEvolve
 
@@ -250,6 +251,7 @@ class AlphaEvolve():
         self.population = []
         self.fitnessScore = {}
         
+        self.maxLenShapeNode = maxLenShapeNode
         self.initiateAlpha(graph)
     
     def checkTimeBudget(self):
@@ -278,7 +280,7 @@ class AlphaEvolve():
         None.
 
         '''
-        self.currAlpha = Alpha(graph)
+        self.currAlpha = Alpha(graph, mutateProb = 0.9, rf = 0.0001, maxLenShapeNode = self.maxLenShapeNode)
         
     def run(self):
         '''
@@ -360,42 +362,45 @@ class AlphaEvolve():
         None.
 
         '''
+        main_curr = ['ADA', 'BCH', 'BNB', 'BTC', 'DASH', 'EOS', 'ETH', 'LTC', 'NEO', 'TRX', 'XEM', 'XLM', 'XMR', 'XRP', 'ZEC', 'USDS']
+        main_pairs = [pair+'USDT' for pair in main_curr]
         self.data = {}
         with ZipFile(self.file, "r") as zip_ref:
            # Get list of files names in zip
-           list_of_files = zip_ref.namelist()
+           #list_of_files = zip_ref.namelist()
         
            # Iterate over the list of file names in given list
-           for elem in list_of_files:
+           #for elem in list_of_files:
                #get the symbol
-               symbol = os.path.splitext(elem)[0]
-               
-               #read csv
-               with zip_ref.open(symbol+'.csv') as f:
-                   df = pd.read_csv(f)
-                   
-                   #drop columns
-                   df.drop(columns = ['Unnamed: 0', 'close_time', 'number_trades', 'asset'], inplace = True)
-                   
-                   #rename the rest columns
-                   df.columns = ['time', 'open', 'high', 'low', 'close', 'volume']
-                   #change time: str -> datetime
-                   df['time'] = pd.to_datetime(df['time'])
-                   
-                   #grouped data to with frequency
-                   new_df = pd.DataFrame()
-                   new_df['open'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['open'].first()
-                   new_df['high'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['high'].max()
-                   new_df['low'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['low'].min()
-                   new_df['close'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['close'].last()
-                   new_df['volume'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['volume'].sum()
-                   
-                   #drop nan
-                   new_df.dropna(inplace = True)
-                   
-                   #filter data have start date before 2020 and end date on 2021-5-31
-                   if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2020, 1, 1):
-                       self.data[symbol] = new_df
+               #symbol = os.path.splitext(elem)[0]
+ 
+            for symbol in main_pairs:
+                #read csv
+                with zip_ref.open(symbol+'.csv') as f:
+                    df = pd.read_csv(f)
+                    
+                    #drop columns
+                    df.drop(columns = ['Unnamed: 0', 'close_time', 'number_trades', 'asset'], inplace = True)
+                    
+                    #rename the rest columns
+                    df.columns = ['time', 'open', 'high', 'low', 'close', 'volume']
+                    #change time: str -> datetime
+                    df['time'] = pd.to_datetime(df['time'])
+                    
+                    #grouped data to with frequency
+                    new_df = pd.DataFrame()
+                    new_df['open'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['open'].first()
+                    new_df['high'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['high'].max()
+                    new_df['low'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['low'].min()
+                    new_df['close'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['close'].last()
+                    new_df['volume'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['volume'].sum()
+                    
+                    #drop nan
+                    new_df.dropna(inplace = True)
+                    
+                    #filter data have start date before 2020 and end date on 2021-5-31
+                    if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2020, 1, 1):
+                        self.data[symbol] = new_df
         
         self.symbolList = list(self.data.keys())
         
