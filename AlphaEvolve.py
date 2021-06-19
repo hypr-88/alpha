@@ -398,7 +398,9 @@ class AlphaEvolve():
                     #drop nan
                     new_df.dropna(inplace = True)
                     
-                    self.data[symbol] = new_df
+                    #filter data have start date before 2020 and end date on 2021-5-31
+                    if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2020, 1, 1):
+                        self.data[symbol] = new_df
         
         self.symbolList = list(self.data.keys())
         
