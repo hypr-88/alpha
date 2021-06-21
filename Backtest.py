@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def backtest(returns: np.ndarray, Prediction: np.ndarray, show: bool = True, pctLongShort: float = 0.1, rf: float = 0.02):
+def backtest(returns: np.ndarray, Prediction: np.ndarray, show: bool = True, pctLongShort: float = 0.3, rf: float = 0.02):
     '''
     This function takes actual returns and predicts returns matrix as parameters and run backtest with the strategy:
         + Equal-weighted buy top (pctLongShort*100)% symbols which have highest predict returns each day.

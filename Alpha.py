@@ -50,7 +50,7 @@ class Alpha():
         Method used to mutate the Graph attribute (Operands/Operations) to generate a new form of graph.
     '''
     
-    def __init__(self, graph: Graph = None, mutateProb: float = 0.9, rf: float = 0.02, maxLenShapeNode: int = 20):
+    def __init__(self, graph: Graph = None, maxNumNodes: int = 200, mutateProb: float = 0.9, rf: float = 0.02, maxLenShapeNode: int = 20):
         '''
         Initiate an Alpha given a Graph or create a new Graph for Alpha.
 
@@ -71,7 +71,7 @@ class Alpha():
         if graph is not None:
             self.graph = copy.deepcopy(graph)
         else:
-            self.graph = Graph(rf = rf)
+            self.graph = Graph(maxNumNodes = maxNumNodes, rf = rf)
             
         self.mutateProb = mutateProb
         self.maxLenShapeNode = maxLenShapeNode

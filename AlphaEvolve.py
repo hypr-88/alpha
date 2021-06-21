@@ -203,7 +203,7 @@ class AlphaEvolve():
         run the alpha evolve
     '''
     def __init__(self, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 3,
-                 trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxLenShapeNode: int = 30,
+                 trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxNumNodes: int = 200, maxLenShapeNode: int = 30,
                  file: str = "may_premium_dataset_USDT.zip"):
         '''
         Method used to initiate AlphaEvolve
@@ -251,6 +251,7 @@ class AlphaEvolve():
         self.population = []
         self.fitnessScore = {}
         
+        self.maxNumNodes = maxNumNodes
         self.maxLenShapeNode = maxLenShapeNode
         self.initiateAlpha(graph)
     
@@ -280,7 +281,7 @@ class AlphaEvolve():
         None.
 
         '''
-        self.currAlpha = Alpha(graph, mutateProb = 0.9, rf = 0.0001, maxLenShapeNode = self.maxLenShapeNode)
+        self.currAlpha = Alpha(graph, maxNumNodes = self.maxNumNodes, mutateProb = 0.9, rf = 0.0001, maxLenShapeNode = self.maxLenShapeNode)
         
     def run(self):
         '''
@@ -399,7 +400,7 @@ class AlphaEvolve():
                     new_df.dropna(inplace = True)
                     
                     #filter data have start date before 2020 and end date on 2021-5-31
-                    if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2020, 1, 1):
+                    if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2019, 6, 1):
                         self.data[symbol] = new_df
         
         self.symbolList = list(self.data.keys())
