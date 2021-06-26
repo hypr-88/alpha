@@ -47,7 +47,7 @@ def backtest(returns: np.ndarray, Prediction: np.ndarray, show: bool = True, pct
         Prediction = pd.DataFrame(Prediction)
         
         #number of long symbols and short symbols
-        noLongShort = int(np.ceil(noSymbol * pctLongShort))
+        noLongShort = 1 #int(np.ceil(noSymbol * pctLongShort))
         
         #weigths of each long/short symbol
         weights = 1/noLongShort

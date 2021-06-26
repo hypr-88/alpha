@@ -330,7 +330,7 @@ class AlphaEvolve():
                     fitnessScore, dailyReturns, annualizedReturns, sharpe = self.summaryAlpha()
                     
                     if fitnessScore != -1: # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
-                        validAlpha.append([self.currAlpha, fitnessScore, dailyReturns, annualizedReturns, sharpe])
+                        validAlpha.append([self.currAlpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues])
             
             if validAlpha == []:
                 print('continue')
@@ -364,6 +364,7 @@ class AlphaEvolve():
 
         '''
         main_curr = ['ADA', 'BCH', 'BNB', 'BTC', 'DASH', 'EOS', 'ETH', 'LTC', 'NEO', 'TRX', 'XEM', 'XLM', 'XMR', 'XRP', 'ZEC', 'USDS']
+        main_curr = ['BTC', 'EOS', 'ETH', 'LTC']
         main_pairs = [pair+'USDT' for pair in main_curr]
         self.data = {}
         with ZipFile(self.file, "r") as zip_ref:
@@ -400,7 +401,7 @@ class AlphaEvolve():
                     new_df.dropna(inplace = True)
                     
                     #filter data have start date before 2020 and end date on 2021-5-31
-                    if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2019, 6, 1):
+                    if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2020, 1, 1):
                         self.data[symbol] = new_df
         
         self.symbolList = list(self.data.keys())
@@ -439,8 +440,8 @@ class AlphaEvolve():
             df['return'] = df['close']/df['close'].shift(1) - 1
             
             #normalize
-            for col in self.featuresList:
-                df[col] /= df[col].max(skipna = True)
+            #for col in self.featuresList:
+            #    df[col] /= df[col].max(skipna = True)
             #remove nan
             df.dropna(inplace = True)
             self.dataLength = len(df)
@@ -465,6 +466,10 @@ class AlphaEvolve():
             return None
         else:
             X = self.data[symbol][self.featuresList].iloc[i-self.window:i]
+            #normalize
+            for col in self.featuresList:
+                X[col] /= X[col].max(skipna = True)
+                
             y = self.data[symbol]['return'].iloc[i]
             return np.array(X, dtype = np.float32), np.array(y, dtype = np.float32)
         
@@ -496,7 +501,7 @@ class AlphaEvolve():
         None.
 
         '''
-        self.bestFit = [None, 0, 0, 0, 0]
+        self.bestFit = [None, 0, 0, 0, 0, {}]
         for i in range(self.populationLength):
             self.currAlpha = self.population[i]
             #prunning
@@ -514,7 +519,7 @@ class AlphaEvolve():
             
             #update best fit alpha ever
             if fitnessScore > self.bestFit[1]:
-                self.bestFit = [self.currAlpha, fitnessScore, dailyReturns, annualizedReturns, sharpe]
+                self.bestFit = [self.currAlpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues]
     
     def evaluate(self):
         '''
@@ -655,10 +660,10 @@ class AlphaEvolve():
             fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
             validPrediction.append(self.OperandsValues['s1'].copy())
             validActual.append(self.OperandsValues['s0'].copy())
-        fitnessScore = sum(fitnessScore)/len(fitnessScore)
+        fitnessScore = sum(fitnessScore)/len(fitnessScore)/(max(fitnessScore)-min(fitnessScore))
         
         #if fitness score is nan -> s1 is constance -> set fitness score to the lowest value possible
-        if np.isnan(fitnessScore): fitnessScore = -1
+        if np.isnan(fitnessScore): fitnessScore = -100
         return fitnessScore, np.array(validPrediction, dtype = np.float32), np.array(validActual, dtype = np.float32)
         
     def test(self):
@@ -682,9 +687,9 @@ class AlphaEvolve():
             testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
             testPrediction.append(self.OperandsValues['s1'].copy())
             testActual.append(self.OperandsValues['s0'].copy())
-        testScore = sum(testScore)/len(testScore)
+        testScore = sum(testScore)/len(testScore)/(max(testScore)-min(testScore))
         #if test score is nan -> s1 is constance -> set test score to the lowest value possible
-        if np.isnan(testScore): testScore = -1
+        if np.isnan(testScore): testScore = -100
         return  testScore, np.array(testPrediction, dtype = np.float32), np.array(testActual, dtype = np.float32)
     
     def setup(self):
@@ -821,7 +826,7 @@ class AlphaEvolve():
         self.bestFit[0].graph.show()
         print('FITNESS SCORE     :', self.bestFit[1])
         print('ANNUALIZED RETURNS:', self.bestFit[3])
-        print('SHARPE            :', self.bestFit[-1])
+        print('SHARPE            :', self.bestFit[4])
         plt.figure(figsize = (6,4))
         plt.plot(self.bestFit[2])
         plt.title('Cumulative Returns')
@@ -855,6 +860,9 @@ class AlphaEvolve():
         #    randomly choose tournamentLength alphas in population and bestfit alpha
         # -> this method facilitate to choose best fit alpha ever (even if that alpha is not in population)
         self.tournament = np.random.choice(self.population + [self.bestFit[0]], replace = False, size = self.tournamentLength)
+    
+    def extractAlpha(self):
+        alpha = self.bestFit[0]
         
     def executeOperation(self, Operation: list):
         '''
