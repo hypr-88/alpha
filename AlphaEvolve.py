@@ -501,7 +501,7 @@ class AlphaEvolve():
         None.
 
         '''
-        self.bestFit = [None, 0, 0, 0, 0, {}]
+        self.bestFit = [None, -1000, 0, 0, 0, {}]
         for i in range(self.populationLength):
             self.currAlpha = self.population[i]
             #prunning
@@ -660,7 +660,7 @@ class AlphaEvolve():
             fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
             validPrediction.append(self.OperandsValues['s1'].copy())
             validActual.append(self.OperandsValues['s0'].copy())
-        fitnessScore = sum(fitnessScore)/len(fitnessScore)/(max(fitnessScore)-min(fitnessScore))
+        fitnessScore = sum(fitnessScore)/len(fitnessScore)/np.std(fitnessScore)
         
         #if fitness score is nan -> s1 is constance -> set fitness score to the lowest value possible
         if np.isnan(fitnessScore): fitnessScore = -100
@@ -687,7 +687,7 @@ class AlphaEvolve():
             testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
             testPrediction.append(self.OperandsValues['s1'].copy())
             testActual.append(self.OperandsValues['s0'].copy())
-        testScore = sum(testScore)/len(testScore)/(max(testScore)-min(testScore))
+        testScore = sum(testScore)/len(testScore)/np.std(testScore)
         #if test score is nan -> s1 is constance -> set test score to the lowest value possible
         if np.isnan(testScore): testScore = -100
         return  testScore, np.array(testPrediction, dtype = np.float32), np.array(testActual, dtype = np.float32)

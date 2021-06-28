@@ -366,9 +366,9 @@ class Alpha():
                 #Add Operations have 'key' as Output
                 for new in newNodes:
                     key = self.graph.addNodes(new)
-                    ScalarList = [node for node in self.graph.nodes.keys() if 's' in node and node != key]
-                    VectorList = [node for node in self.graph.nodes.keys() if 'v' in node and node != key]
-                    MatrixList = [node for node in self.graph.nodes.keys() if 'm' in node and node != key]
+                    ScalarList = [node for node in self.graph.nodes.keys() if 's' in node and node not in {key, 's0'}]
+                    VectorList = [node for node in self.graph.nodes.keys() if 'v' in node and node not in {key, 's0'}]
+                    MatrixList = [node for node in self.graph.nodes.keys() if 'm' in node and node not in {key, 's0'}]
 
                     if 's' in key:
                         valid = False
@@ -513,9 +513,9 @@ class Alpha():
                     if 'm' in key: op = toMatrixOp[np.random.randint(len(toMatrixOp))]
                     mode = 'add operation'
                 
-                ScalarList = [node for node in self.graph.nodes.keys() if 's' in node and node != key]
-                VectorList = [node for node in self.graph.nodes.keys() if 'v' in node and node != key]
-                MatrixList = [node for node in self.graph.nodes.keys() if 'm' in node and node != key]
+                ScalarList = [node for node in self.graph.nodes.keys() if 's' in node and node not in {key, 's0'}]
+                VectorList = [node for node in self.graph.nodes.keys() if 'v' in node and node not in {key, 's0'}]
+                MatrixList = [node for node in self.graph.nodes.keys() if 'm' in node and node not in {key, 's0'}]
                 
                 if 's' in key:
                     valid = False
