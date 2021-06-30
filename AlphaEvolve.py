@@ -14,7 +14,8 @@ from dateutil.relativedelta import relativedelta
 
 from zipfile import ZipFile
 import os
-
+import requests
+import json
 class AlphaEvolve():
     '''
     Main class to run alpha evolve
@@ -202,7 +203,7 @@ class AlphaEvolve():
     run()
         run the alpha evolve
     '''
-    def __init__(self, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 3,
+    def __init__(self, name: str = 'abc', graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 3,
                  trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxNumNodes: int = 200, maxLenShapeNode: int = 30,
                  file: str = "may_premium_dataset_USDT.zip"):
         '''
@@ -232,6 +233,8 @@ class AlphaEvolve():
         None.
 
         '''
+        self.name = name
+        
         self.startTime = datetime.now()
         days, hours, minutes, seconds = TimeBudget
         self.endTime = self.startTime + relativedelta(days = days, hours = hours, minutes = minutes, seconds = seconds)
@@ -354,6 +357,9 @@ class AlphaEvolve():
             #summary best fit alpha ever
             self.summaryBestFit()
             
+        
+        self.extractAlpha(self.name)
+            
     def importData(self):
         '''
         import data from .csv files in 'RawData/'
@@ -440,8 +446,8 @@ class AlphaEvolve():
             df['return'] = df['close']/df['close'].shift(1) - 1
             
             #normalize
-            #for col in self.featuresList:
-            #    df[col] /= df[col].max(skipna = True)
+            for col in self.featuresList:
+                df[col] /= df[col].max(skipna = True)
             #remove nan
             df.dropna(inplace = True)
             self.dataLength = len(df)
@@ -467,8 +473,8 @@ class AlphaEvolve():
         else:
             X = self.data[symbol][self.featuresList].iloc[i-self.window:i]
             #normalize
-            for col in self.featuresList:
-                X[col] /= X[col].max(skipna = True)
+            #for col in self.featuresList:
+            #    X[col] /= X[col].max(skipna = True)
                 
             y = self.data[symbol]['return'].iloc[i]
             return np.array(X, dtype = np.float32), np.array(y, dtype = np.float32)
@@ -655,6 +661,7 @@ class AlphaEvolve():
         for i in range(self.trainLength, self.trainLength + self.validLength):
             #self.currAlpha.graph.show()
             self.addM0(i)
+            self.setup()
             self.predict()
             self.addS0(i)
             fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
@@ -682,6 +689,7 @@ class AlphaEvolve():
         for i in range(self.trainLength + self.validLength, self.dataLength - 1):
             #self.currAlpha.graph.show()
             self.addM0(i)
+            self.setup()
             self.predict()
             self.addS0(i)
             testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
@@ -861,8 +869,35 @@ class AlphaEvolve():
         # -> this method facilitate to choose best fit alpha ever (even if that alpha is not in population)
         self.tournament = np.random.choice(self.population + [self.bestFit[0]], replace = False, size = self.tournamentLength)
     
-    def extractAlpha(self):
-        alpha = self.bestFit[0]
+    def extractAlpha(self, name: str = 'abc'):
+        #handle int32 and float32 to serialize to json
+        for key, value in self.bestFit[5].items():
+            value = np.array(value, dtype = np.float64).tolist()
+            self.bestFit[5][key] = value
+        
+        for operation in self.bestFit[0].graph.updateOPs + self.bestFit[0].graph.predictOPs + self.bestFit[0].graph.updateOPs:
+            for i, element in enumerate(operation):
+                if isinstance(element, np.int32) or isinstance(element, np.int64):
+                    operation[i] = int(element)
+                elif isinstance(element, np.float32):
+                    operation[i] = float(element)
+        
+        # post API
+        url = 'http://54.199.171.116/api/alpha'
+
+        headers = {'Token': 'q0hcdABLUhGAzW3j',
+                'Content-Type': 'application/json'}
+        
+        body = json.dumps({ 'symbolList': self.symbolList,
+         'window' : self.window,
+         'nodes' : list(self.bestFit[0].graph.nodes.keys()),
+         'setupOPs' : self.bestFit[0].graph.setupOPs,
+         'predictOPs' : self.bestFit[0].graph.predictOPs,
+         'updateOPs' : self.bestFit[0].graph.updateOPs,
+         'operandsValues': self.bestFit[5],
+         'name' : name })
+        
+        requests.post(url = url, data = body, headers = headers)
         
     def executeOperation(self, Operation: list):
         '''
@@ -876,7 +911,6 @@ class AlphaEvolve():
         ----------
         Operation : list
             [Output: str, OP: int, Inputs: list].
-
         Returns
         -------
         None.
