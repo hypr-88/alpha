@@ -408,7 +408,7 @@ def OP65(df: pd.DataFrame) -> cp.ndarray:
         
     Returns
     -------
-    np.ndarray
+    cp.ndarray
         The ranking array of df.Scalar. If tie, return the average of ranks.
 
     '''
@@ -424,7 +424,7 @@ def OP66(df: pd.DataFrame) -> cp.ndarray:
         
     Returns
     -------
-    np.ndarray
+    cp.ndarray
         The relational ranking array of df.Scalar grouped by df.Industry. If tie, return the average of ranks.
 
     '''
@@ -444,7 +444,7 @@ def OP67(df: pd.DataFrame) -> cp.ndarray:
         
     Returns
     -------
-    np.ndarray
+    cp.ndarray
         The deviation array from the means of each df.Industry
 
     '''
