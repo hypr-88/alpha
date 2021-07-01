@@ -14,6 +14,7 @@ from dateutil.relativedelta import relativedelta
 
 from zipfile import ZipFile
 import os
+from multiprocessing import Pool
 
 class AlphaEvolve():
     '''
@@ -491,7 +492,27 @@ class AlphaEvolve():
                     break
                 except:
                     continue
-                
+
+    def test(self, alpha):
+        self.bestFit = [None, -1000, 0, 0, 0, {}]
+        self.currAlpha = alpha
+        # prunning
+        self.prunning()
+
+        # evaluation Alpha
+        fitnessScore, dailyReturns, annualizedReturns, sharpe = self.summaryAlpha()
+
+        # fingerprint
+        fingerPrint = self.fingerprint()
+        if fingerPrint in self.fitnessScore:
+            pass
+        else:
+            self.fitnessScore[fingerPrint] = fitnessScore
+
+        # update best fit alpha ever
+        if fitnessScore > self.bestFit[1]:
+            self.bestFit = [self.currAlpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues]
+
     def runFirstPopulation(self):
         '''
         Evaluate all alpha in the first population
@@ -501,25 +522,8 @@ class AlphaEvolve():
         None.
 
         '''
-        self.bestFit = [None, -1000, 0, 0, 0, {}]
-        for i in range(self.populationLength):
-            self.currAlpha = self.population[i]
-            #prunning
-            self.prunning()
-                
-            #evaluation Alpha
-            fitnessScore, dailyReturns, annualizedReturns, sharpe = self.summaryAlpha()
-            
-            #fingerprint
-            fingerPrint = self.fingerprint()
-            if fingerPrint in self.fitnessScore:
-                pass
-            else:
-                self.fitnessScore[fingerPrint] = fitnessScore
-            
-            #update best fit alpha ever
-            if fitnessScore > self.bestFit[1]:
-                self.bestFit = [self.currAlpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues]
+        with Pool() as p:
+            p.map(self.test, self.population[:self.populationLength])
     
     def evaluate(self):
         '''
