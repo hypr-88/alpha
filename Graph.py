@@ -91,10 +91,10 @@ class Graph():
         Method using Dynamic Programming to check whether S1 depends on M0 or not.
         This function is used inside method prunning().
     
-    addS0(data: np.ndarray)
+    addS0(data: cp.ndarray)
         Method used to update/initiate the value of node S0(actual returns) in attribute nodes.
     
-    addM0(data: np.ndarray)
+    addM0(data: cp.ndarray)
         Method used to update/initiate the value of node M0(data fited to the algorithm) in attribute nodes.
     
     addNodes(node)
@@ -482,7 +482,7 @@ class Graph():
 
         Parameters
         ----------
-        data : np.ndarray
+        data : cp.ndarray
             value of s0 - actual returns.
 
         Returns
@@ -501,7 +501,7 @@ class Graph():
 
         Parameters
         ----------
-        data : np.ndarray
+        data : cp.ndarray
             value of m0 with the shape of (window, features)
 
         Returns

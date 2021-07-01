@@ -13,7 +13,7 @@ class Scalar():
     
     Attributes
     -----------
-    value: np.ndarray(dtype = float32)
+    value: cp.ndarray(dtype = float32)
         The value of scalar operand
     shape: 0
         The shape of scalar (always equal to 0)
@@ -31,7 +31,7 @@ class Scalar():
         
         Parameters
         ----------
-        s : float/int/np.ndarray, optional
+        s : float/int/cp.ndarray, optional
             Create a new scalar object with value of s. The default is None.
 
         Returns
@@ -50,8 +50,8 @@ class Scalar():
         
         Parameters
         ----------
-        s : float/int/np.ndarray with shape of 1
-            This function assign s to attribute value. It can handle the all types of scalar input(int, float, np.array with shape of:(), (1,), (1,1), (1,1,1), ...)
+        s : float/int/cp.ndarray with shape of 1
+            This function assign s to attribute value. It can handle the all types of scalar input(int, float, cp.array with shape of:(), (1,), (1,1), (1,1,1), ...)
 
         Raises
         ------
@@ -85,7 +85,7 @@ class Vector():
     
     Attributes
     -----------
-    value: np.ndarray(dtype = float32)
+    value: cp.ndarray(dtype = float32)
         The value of vector operand
     shape: int
         The length of vector operands
@@ -123,7 +123,7 @@ class Vector():
         Parameters
         ----------
         v : array alike
-            This function assign v to attribute value. It can handle types of vector input of list, 1D-np.matrix, np.array with shape of (n,)
+            This function assign v to attribute value. It can handle types of vector input of list, 1D-cp.matrix, cp.array with shape of (n,)
 
         Raises
         ------
@@ -152,10 +152,10 @@ class Vector():
         if self.shape == len(v) or self.shape is None:
             self.value = v
             self.shape = len(self.value)
-        # handle np.array with shape of (1,n), (1,1,n), (1,1,1,n), ...
+        # handle cp.array with shape of (1,n), (1,1,n), (1,1,1,n), ...
         #elif len(v.shape) != 1 and v.shape[-1] != 1 and sum(v.shape[:-1])/len(v.shape[:-1]) == 1:
         #   if self.shape == len(v) or self.shape is None:
-        #        self.value = np.squeeze(v)
+        #        self.value = cp.squeeze(v)
         #        self.shape = len(self.value)
         else:
             self.value = None
@@ -171,7 +171,7 @@ class Matrix():
     
     Attributes
     -----------
-    value: np.ndarray(dtype = float32)
+    value: cp.ndarray(dtype = float32)
         The value of matrix operand
     shape: tuple
         The shape of matrix operands
@@ -187,7 +187,7 @@ class Matrix():
         
         Parameters
         ----------
-        m : 2D-Matrix/np.ndarray/np.matrix, optional
+        m : 2D-Matrix/cp.ndarray/cp.matrix, optional
             Create a new matrix object with value of m. The default is None.
 
         Returns
@@ -207,7 +207,7 @@ class Matrix():
 
         Parameters
         ----------
-        m : 2D-Matrix/np.ndarray/np.matrix
+        m : 2D-Matrix/cp.ndarray/cp.matrix
             This function assign m to attribute value.
             
         Raises

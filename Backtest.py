@@ -11,10 +11,10 @@ def backtest(returns: cp.ndarray, Prediction: cp.ndarray, show: bool = True, pct
     
     Parameters
     ----------
-    returns : np.ndarray
+    returns : cp.ndarray
         This parameter is a matrix of actual returns calculated from data. Each row represents one day and each column represent one symbol.
         It is calculated from value of attribute OperandsValues 's0' of class AlphaEvolve.
-    Prediction : np.ndarray
+    Prediction : cp.ndarray
         This parameter is a matrix of predicted returns calculated from Predict Operations. Each row represents one day and each column represent one symbol.
         It is calculated from value of attribute OperandsValues 's1' of class AlphaEvolve.
     show : bool, optional
@@ -28,7 +28,7 @@ def backtest(returns: cp.ndarray, Prediction: cp.ndarray, show: bool = True, pct
     Returns
     -------
     Tuples: (dailyReturns, annualizedReturns, sharpe)
-    dailyReturns : np.ndarray
+    dailyReturns : cp.ndarray
         Array of daily returns during the test period.
     annualizedReturns : float
         Anualized returns.
@@ -47,7 +47,7 @@ def backtest(returns: cp.ndarray, Prediction: cp.ndarray, show: bool = True, pct
         Prediction = pd.DataFrame(Prediction)
         
         #number of long symbols and short symbols
-        noLongShort = 1 #int(np.ceil(noSymbol * pctLongShort))
+        noLongShort = 1 #int(cp.ceil(noSymbol * pctLongShort))
         
         #weigths of each long/short symbol
         weights = 1/noLongShort
