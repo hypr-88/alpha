@@ -1,6 +1,6 @@
 from Operands import Scalar, Vector, Matrix
 import copy
-import numpy as np
+import cupy as cp
 
 class Error(Exception):
     def __init__(self, m):
@@ -476,7 +476,7 @@ class Graph():
             
         return connection[node]
         
-    def addS0(self, data: np.ndarray):
+    def addS0(self, data: cp.ndarray):
         '''
         Method used to update/initiate the value of node S0(actual returns) in attribute nodes.
 
@@ -495,7 +495,7 @@ class Graph():
         else:
             self.nodes['s0'].updateValue(data)
     
-    def addM0(self, data: np.ndarray):
+    def addM0(self, data: cp.ndarray):
         '''
         Method used to update/initiate the value of node M0(data fited to the algorithm) in attribute nodes.
 

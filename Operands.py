@@ -1,4 +1,4 @@
-import numpy as np
+import cupy as cp
 
 class Error(Exception):
     def __init__(self, m):
@@ -63,13 +63,13 @@ class Scalar():
         None.
 
         '''
-        if isinstance(s, np.ndarray) or isinstance(s, np.int32) or isinstance(s, np.int64) or isinstance(s, np.float32) or isinstance(s, np.float64):
+        if isinstance(s, cp.ndarray) or isinstance(s, cp.int32) or isinstance(s, cp.int64) or isinstance(s, cp.float32) or isinstance(s, cp.float64):
             if len(s.shape) == 0:
                 s = float(s)
             elif sum(s.shape)/len(s.shape) == 1:
                 s = float(s)
         if isinstance(s, float) or isinstance(s, int):
-            s = np.array(s, dtype = np.float32)
+            s = cp.array(s, dtype = cp.float32)
             self.value = s
         else:
             self.value = None
@@ -135,11 +135,11 @@ class Vector():
         None.
 
         '''
-        if isinstance(v, np.matrix):
-            v = np.asarray(v, dtype = np.float32)
-        if not isinstance(v, np.ndarray):
+        if isinstance(v, cp.matrix):
+            v = cp.asarray(v, dtype = cp.float32)
+        if not isinstance(v, cp.ndarray):
             try:
-                v = np.array(v, dtype = np.float32)
+                v = cp.array(v, dtype = cp.float32)
             except:
                 self.value = None
                 raise Error("Input is not vector")
@@ -221,11 +221,11 @@ class Matrix():
 
         '''
         
-        if isinstance(m, np.matrix):
-            m = np.asarray(m, dtype = np.float32)
-        if not isinstance(m, np.ndarray):
+        if isinstance(m, cp.matrix):
+            m = cp.asarray(m, dtype = cp.float32)
+        if not isinstance(m, cp.ndarray):
             try:
-                m = np.array(m, dtype = np.float32)
+                m = cp.array(m, dtype = cp.float32)
             except:
                 self.value = None
                 raise Error("Input is not matrix")

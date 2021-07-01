@@ -1,4 +1,4 @@
-import numpy as np
+import cupy as cp
 import pandas as pd
 from scipy.stats import rankdata
 from Operands import Scalar, Vector, Matrix
@@ -84,126 +84,126 @@ class inputError(Exception):
     def __str__(self):
         return self.message
 
-def OP1(s1: Scalar, s2: Scalar) -> np.float32:
+def OP1(s1: Scalar, s2: Scalar) -> cp.float32:
     # s1 + s2
     return (s1.value + s2.value)
 
-def OP2(s1: Scalar, s2: Scalar) -> np.float32:
+def OP2(s1: Scalar, s2: Scalar) -> cp.float32:
     # s1 - s2
     return (s1.value - s2.value)
 
-def OP3(s1: Scalar, s2: Scalar) -> np.float32:
+def OP3(s1: Scalar, s2: Scalar) -> cp.float32:
     # s1 * s2
     return (s1.value*s2.value)
 
-def OP4(s1: Scalar, s2: Scalar) -> np.float32:
+def OP4(s1: Scalar, s2: Scalar) -> cp.float32:
     # s1 / s2
     if s2.value == 0:
         raise(inputError("Divisor cannot be 0"))
     return (s1.value/s2.value)
 
-def OP5(s: Scalar) -> np.float32:
+def OP5(s: Scalar) -> cp.float32:
     # |s|
     return (abs(s.value))
 
-def OP6(s: Scalar) -> np.float32:
+def OP6(s: Scalar) -> cp.float32:
     # 1/s
     if s.value == 0:
         raise(inputError("Cannot inverse 0"))
     return (1/s.value)
 
-def OP7(s: Scalar) -> np.float32:
+def OP7(s: Scalar) -> cp.float32:
     # sin(s)
-    return (np.sin(s.value))
+    return (cp.sin(s.value))
 
-def OP8(s: Scalar) -> np.float32:
+def OP8(s: Scalar) -> cp.float32:
     # cos(s)
-    return (np.cos(s.value))
+    return (cp.cos(s.value))
 
-def OP9(s: Scalar) -> np.float32:
+def OP9(s: Scalar) -> cp.float32:
     # tan(s)
-    return (np.tan(s.value))
+    return (cp.tan(s.value))
 
-def OP10(s: Scalar) -> np.float32:
+def OP10(s: Scalar) -> cp.float32:
     # arcsin(s)
     if abs(s.value) > 1:
         raise(inputError("Input must be in the range [-1,1]"))
-    return (np.arcsin(s.value))
+    return (cp.arcsin(s.value))
 
-def OP11(s: Scalar) -> np.float32:
+def OP11(s: Scalar) -> cp.float32:
     # arccos(s)
     if abs(s.value) > 1:
         raise(inputError("Input must be in the range [-1,1]"))
-    return (np.arccos(s.value))
+    return (cp.arccos(s.value))
 
-def OP12(s: Scalar) -> np.float32:
+def OP12(s: Scalar) -> cp.float32:
     # arctan(s)
-    return (np.arctan(s.value))
+    return (cp.arctan(s.value))
 
-def OP13(s: Scalar) -> np.float32:
+def OP13(s: Scalar) -> cp.float32:
     # e^s
-    return (np.exp(s.value))
+    return (cp.exp(s.value))
 
-def OP14(s: Scalar) -> np.float32:
+def OP14(s: Scalar) -> cp.float32:
     # ln(s)
     if s.value <= 0:
         raise(inputError("Input must be positive"))
-    return (np.log(s.value))
+    return (cp.log(s.value))
 
-def OP15(s: Scalar) -> np.float32:
+def OP15(s: Scalar) -> cp.float32:
     # heaviside(s) for scalar
-    return (max(np.sign(s.value), 0))
+    return (max(cp.sign(s.value), 0))
 
-def OP16(v: Vector) -> np.ndarray:
+def OP16(v: Vector) -> cp.ndarray:
     # heaviside(v) for vector
-    return (np.heaviside(v.value, 0))
+    return (cp.heaviside(v.value, 0))
 
-def OP17(m: Matrix) -> np.ndarray:
+def OP17(m: Matrix) -> cp.ndarray:
     # heaviside(m) for matrix
-    return (np.heaviside(m.value, 0))
+    return (cp.heaviside(m.value, 0))
 
-def OP18(s: Scalar, v: Vector) -> np.ndarray:
+def OP18(s: Scalar, v: Vector) -> cp.ndarray:
     # s*v
     return (s.value*v.value)
 
-def OP19(s: Scalar, i: int) -> np.ndarray:
+def OP19(s: Scalar, i: int) -> cp.ndarray:
     # v = bcast(s): scalar to vector
     # i: length of vector output
-    return np.array([s.value]*i)
+    return cp.array([s.value] * i)
 
-def OP20(v: Vector) -> np.ndarray:
+def OP20(v: Vector) -> cp.ndarray:
     # 1/v: inverse of vector
     if (v.value==0).any():
         raise(inputError("Element cannot be 0"))
     return (1/v.value)
 
-def OP21(v: Vector) -> np.float32:
+def OP21(v: Vector) -> cp.float32:
     # ||v||
-    return (np.linalg.norm(v.value))
+    return (cp.linalg.norm(v.value))
 
-def OP22(v: Vector) -> np.ndarray:
+def OP22(v: Vector) -> cp.ndarray:
     # |v|
     return (abs(v.value))
 
-def OP23(v1: Vector, v2: Vector) -> np.ndarray:
+def OP23(v1: Vector, v2: Vector) -> cp.ndarray:
     # v1+v2
     if len(v1.value)!=len(v2.value):
         raise inputError("Vectors input must have the same size")
     return (v1.value + v2.value)
 
-def OP24(v1: Vector, v2: Vector) -> np.ndarray:
+def OP24(v1: Vector, v2: Vector) -> cp.ndarray:
     # v1-v2
     if len(v1.value)!=len(v2.value):
         raise inputError("Vectors input must have the same size")
     return (v1.value - v2.value)
 
-def OP25(v1: Vector, v2: Vector) -> np.ndarray:
+def OP25(v1: Vector, v2: Vector) -> cp.ndarray:
     # v1*v2
     if len(v1.value)!=len(v2.value):
         raise inputError("Vectors input must have the same size")
     return (v1.value * v2.value)
 
-def OP26(v1: Vector, v2: Vector) -> np.ndarray:
+def OP26(v1: Vector, v2: Vector) -> cp.ndarray:
     # v1/v2
     if len(v1.value)!=len(v2.value):
         raise inputError("Vectors input must have the same size")
@@ -211,84 +211,84 @@ def OP26(v1: Vector, v2: Vector) -> np.ndarray:
         raise inputError("Divisor input cannot be 0")
     return (v1.value / v2.value)
 
-def OP27(v1: Vector, v2: Vector) -> np.float32:
+def OP27(v1: Vector, v2: Vector) -> cp.float32:
     # dot product of 2 vectors
     if len(v1.value)!=len(v2.value):
         raise inputError("Vectors input must have the same size")
-    return (np.dot(v1.value, v2.value))
+    return (cp.dot(v1.value, v2.value))
 
-def OP28(v1: Vector, v2: Vector) -> np.ndarray:
+def OP28(v1: Vector, v2: Vector) -> cp.ndarray:
     # outer product
-    return (np.outer(v1.value, v2.value))
+    return (cp.outer(v1.value, v2.value))
 
-def OP29(s: Scalar, m: Matrix) -> np.ndarray:
+def OP29(s: Scalar, m: Matrix) -> cp.ndarray:
     # s*m
     return (s.value*m.value)
 
-def OP30(m: Matrix) -> np.ndarray:
+def OP30(m: Matrix) -> cp.ndarray:
     # 1/m
     if (m.value==0).any():
         raise(inputError("Element cannot be 0"))
     return (1/m.value)
 
-def OP31(m: Matrix, v: Vector) -> np.ndarray:
+def OP31(m: Matrix, v: Vector) -> cp.ndarray:
     # dot(m, v)
     if m.value.shape[1]!=len(v.value):
         raise inputError("Vector input must have the same size as row size of matrix")
-    return np.dot(m.value, v.value)
+    return cp.dot(m.value, v.value)
 
-def OP32(v: Vector, i: int) -> np.ndarray:
+def OP32(v: Vector, i: int) -> cp.ndarray:
     # [[1, 2, 3, 4],
     # [1, 2, 3, 4],
     # [1, 2, 3, 4]]
-    return np.array([v.value]*i)
+    return cp.array([v.value] * i)
 
-def OP33(v: Vector, j: int) -> np.ndarray:
+def OP33(v: Vector, j: int) -> cp.ndarray:
     # [[1, 1, 1],
     # [2, 2, 2],
     # [3, 3, 3],
     # [4, 4, 4]]
-    return (np.transpose(np.array([v.value]*j)))
+    return (cp.transpose(cp.array([v.value] * j)))
 
-def OP34(m: Matrix) -> np.float32:
+def OP34(m: Matrix) -> cp.float32:
     # ||m||
-    return (np.linalg.norm(m.value))
+    return (cp.linalg.norm(m.value))
 
-def OP35(m: Matrix) -> np.ndarray:
+def OP35(m: Matrix) -> cp.ndarray:
     # v[i] = norm(m[i,])
-    return (np.linalg.norm(m.value, axis = 1))
+    return (cp.linalg.norm(m.value, axis = 1))
 
-def OP36(m: Matrix) -> np.ndarray:
+def OP36(m: Matrix) -> cp.ndarray:
     # v[j] = norm(m[,j])
-    return (np.linalg.norm(m.value, axis = 0))
+    return (cp.linalg.norm(m.value, axis = 0))
 
-def OP37(m: Matrix) -> np.ndarray:
+def OP37(m: Matrix) -> cp.ndarray:
     # transpose(m)
-    return (np.transpose(m.value))
+    return (cp.transpose(m.value))
 
-def OP38(m: Matrix) -> np.float32:
+def OP38(m: Matrix) -> cp.float32:
     # |m|
     return (abs(m.value))
 
-def OP39(m1: Matrix, m2: Matrix) -> np.ndarray:
+def OP39(m1: Matrix, m2: Matrix) -> cp.ndarray:
     # m1+m2
     if m1.value.shape != m2.value.shape:
         raise inputError("Matrices must have the same size")
     return (m1.value + m2.value)
 
-def OP40(m1: Matrix, m2: Matrix) -> np.ndarray:
+def OP40(m1: Matrix, m2: Matrix) -> cp.ndarray:
     # m1-m2
     if m1.value.shape != m2.value.shape:
         raise inputError("Matrices must have the same size")
     return (m1.value - m2.value)
 
-def OP41(m1: Matrix, m2: Matrix) -> np.ndarray:
+def OP41(m1: Matrix, m2: Matrix) -> cp.ndarray:
     # m1*m2
     if m1.value.shape != m2.value.shape:
         raise inputError("Matrices must have the same size")
     return (m1.value * m2.value)
 
-def OP42(m1: Matrix, m2: Matrix) -> np.ndarray:
+def OP42(m1: Matrix, m2: Matrix) -> cp.ndarray:
     # m1/m2
     if m1.value.shape != m2.value.shape:
         raise inputError("Matrices must have the same size")
@@ -296,109 +296,109 @@ def OP42(m1: Matrix, m2: Matrix) -> np.ndarray:
         raise(inputError("Element cannot be 0"))
     return (m1.value / m2.value)
 
-def OP43(m1: Matrix, m2: Matrix) -> np.ndarray:
+def OP43(m1: Matrix, m2: Matrix) -> cp.ndarray:
     # matmul(m1, m2)
-    return (np.matmul(m1.value, m2.value))
+    return (cp.matmul(m1.value, m2.value))
 
-def OP44(s1: Scalar, s2: Scalar) -> np.float32:
+def OP44(s1: Scalar, s2: Scalar) -> cp.float32:
     # min(s1, s2)
     return (min(s1.value, s2.value))
 
-def OP45(v1: Vector, v2: Vector) -> np.ndarray:
+def OP45(v1: Vector, v2: Vector) -> cp.ndarray:
     # min(v1, v2)
     if len(v1.value)!= len(v2.value):
         raise inputError("Vectors must have the same size")
-    return (np.minimum(v1.value, v2.value))
+    return (cp.minimum(v1.value, v2.value))
 
-def OP46(m1: Matrix, m2: Matrix) -> np.ndarray:
+def OP46(m1: Matrix, m2: Matrix) -> cp.ndarray:
     # min(m1, m2)
     if m1.value.shape != m2.value.shape:
         raise inputError("Matrices must have the same shape")
-    return (np.minimum(m1.value, m2.value))
+    return (cp.minimum(m1.value, m2.value))
 
-def OP47(s1: Scalar, s2: Scalar) -> np.float32:
+def OP47(s1: Scalar, s2: Scalar) -> cp.float32:
     # max(s1, s2)
     return (max(s1.value, s2.value))
 
-def OP48(v1: Vector, v2: Vector) -> np.ndarray:
+def OP48(v1: Vector, v2: Vector) -> cp.ndarray:
     # max(v1, v2)
     if len(v1.value)!= len(v2.value):
         raise inputError("Vectors must have the same size")
-    return (np.maximum(v1.value, v2.value))
+    return (cp.maximum(v1.value, v2.value))
 
-def OP49(m1: Matrix, m2: Matrix) -> np.ndarray:
+def OP49(m1: Matrix, m2: Matrix) -> cp.ndarray:
     # max(m1, m2)
     if m1.value.shape != m2.value.shape:
         raise inputError("Matrices must have the same shape")
-    return (np.maximum(m1.value, m2.value))
+    return (cp.maximum(m1.value, m2.value))
 
-def OP50(v: Vector) -> np.float32:
+def OP50(v: Vector) -> cp.float32:
     # mean(v)
-    return (np.mean(v.value))
+    return (cp.mean(v.value))
 
-def OP51(m: Matrix) -> np.float32:
+def OP51(m: Matrix) -> cp.float32:
     # mean(m)
-    return (np.mean(m.value))
+    return (cp.mean(m.value))
 
-def OP52(m: Matrix) -> np.ndarray:
+def OP52(m: Matrix) -> cp.ndarray:
     # vector mean of each row
-    return (np.mean(m.value, axis = 1))
+    return (cp.mean(m.value, axis = 1))
 
-def OP53(m: Matrix) -> np.ndarray:
+def OP53(m: Matrix) -> cp.ndarray:
     # vector std of each row
-    return (np.std(m.value, axis = 1))
+    return (cp.std(m.value, axis = 1))
 
-def OP54(v: Vector) -> np.float32:
+def OP54(v: Vector) -> cp.float32:
     # std of vector
-    return (np.std(v.value))
+    return (cp.std(v.value))
 
-def OP55(m: Matrix) -> np.float32:
+def OP55(m: Matrix) -> cp.float32:
     # std of matrix
-    return (np.std(m.value))
+    return (cp.std(m.value))
 
 def OP56(const: float) -> float:
     # Initiate constant scalar
     return const
 
-def OP57(const: float, i: int) -> np.ndarray:
+def OP57(const: float, i: int) -> cp.ndarray:
     # Initiate constant vector
-    return np.array([const]*i)
+    return cp.array([const] * i)
 
-def OP58(const: float, i: int, j: int) -> np.ndarray:
+def OP58(const: float, i: int, j: int) -> cp.ndarray:
     # Initiate constant matrix
     return ([[const]*j]*i)
 
 def OP59(a:float = -1, b:float = 1) -> float:
     # generate a random scalar from uniform(a, b)
-    return (np.random.uniform(low=min(a, b), high=max(a,b)))
+    return (cp.random.uniform(low=min(a, b), high=max(a, b)))
 
-def OP60(a: float, b: float, i: int) -> np.ndarray:
+def OP60(a: float, b: float, i: int) -> cp.ndarray:
     # generate a random vector from uniform(a, b)
-    return (np.random.uniform(low=min(a, b), high=max(a,b), size=(i,)))
+    return (cp.random.uniform(low=min(a, b), high=max(a, b), size=(i,)))
 
-def OP61(a: float, b: float, i: int, j: int) -> np.ndarray:
+def OP61(a: float, b: float, i: int, j: int) -> cp.ndarray:
     # generate a random matrix from uniform(a, b)
-    return (np.random.uniform(low=min(a, b), high=max(a,b), size=(i,j)))
+    return (cp.random.uniform(low=min(a, b), high=max(a, b), size=(i, j)))
 
 def OP62(mean: float = 0, std: float = 1) -> float:
     # generate a random scalar from normal distribution
     if std < 0:
         raise inputError("Standard deviation cannot be negative")
-    return (np.random.normal(loc = mean, scale = std))
+    return (cp.random.normal(loc = mean, scale = std))
 
-def OP63(mean: float, std: float, i: int) -> np.ndarray:
+def OP63(mean: float, std: float, i: int) -> cp.ndarray:
     # generate a random vector from normal distribution
     if std < 0:
         raise inputError("Standard deviation cannot be negative")
-    return (np.random.normal(loc = mean, scale = std, size = (i,)))
+    return (cp.random.normal(loc = mean, scale = std, size = (i,)))
 
-def OP64(mean: float, std: float, i: int, j: int) -> np.ndarray:
+def OP64(mean: float, std: float, i: int, j: int) -> cp.ndarray:
     # generate a random matrix from normal distribution
     if std < 0:
         raise inputError("Standard deviation cannot be negative")
-    return (np.random.normal(loc = mean, scale = std, size = (i,j)))
+    return (cp.random.normal(loc = mean, scale = std, size = (i, j)))
 
-def OP65(df: pd.DataFrame) -> np.ndarray:
+def OP65(df: pd.DataFrame) -> cp.ndarray:
     '''
 
     Parameters
@@ -414,7 +414,7 @@ def OP65(df: pd.DataFrame) -> np.ndarray:
     '''
     return rankdata(df['Scalar'])
 
-def OP66(df: pd.DataFrame) -> np.ndarray:
+def OP66(df: pd.DataFrame) -> cp.ndarray:
     '''
 
     Parameters
@@ -432,9 +432,9 @@ def OP66(df: pd.DataFrame) -> np.ndarray:
     def rankIndustry(df: pd.DataFrame):
         df['rank'] = rankdata(df['Scalar'])
         return df
-    return np.array(df.groupby('Industry').apply(rankIndustry)['rank'], dtype = np.float32)
+    return cp.array(df.groupby('Industry').apply(rankIndustry)['rank'], dtype = cp.float32)
     
-def OP67(df: pd.DataFrame) -> np.ndarray:
+def OP67(df: pd.DataFrame) -> cp.ndarray:
     '''
 
     Parameters
@@ -452,4 +452,4 @@ def OP67(df: pd.DataFrame) -> np.ndarray:
     def deviate(df: pd.DataFrame):
         df['Deviate'] = df['Scalar'] - sum(df['Scalar'])/len(df['Scalar'])
         return df
-    return np.array(df.groupby('Industry').apply(deviate)['Deviate'], dtype = np.float32)
+    return cp.array(df.groupby('Industry').apply(deviate)['Deviate'], dtype = cp.float32)

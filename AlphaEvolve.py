@@ -1,4 +1,4 @@
-import numpy as np
+import cupy as cp
 import pandas as pd
 import matplotlib.pyplot as plt
 import copy
@@ -471,7 +471,7 @@ class AlphaEvolve():
                 X[col] /= X[col].max(skipna = True)
                 
             y = self.data[symbol]['return'].iloc[i]
-            return np.array(X, dtype = np.float32), np.array(y, dtype = np.float32)
+            return cp.array(X, dtype = cp.float32), cp.array(y, dtype = cp.float32)
         
     def initiatePopulation(self):
         '''
@@ -657,14 +657,14 @@ class AlphaEvolve():
             self.addM0(i)
             self.predict()
             self.addS0(i)
-            fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
+            fitnessScore.append(cp.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0, 1])
             validPrediction.append(self.OperandsValues['s1'].copy())
             validActual.append(self.OperandsValues['s0'].copy())
-        fitnessScore = sum(fitnessScore)/len(fitnessScore)/np.std(fitnessScore)
+        fitnessScore = sum(fitnessScore) / len(fitnessScore) / cp.std(fitnessScore)
         
         #if fitness score is nan -> s1 is constance -> set fitness score to the lowest value possible
-        if np.isnan(fitnessScore): fitnessScore = -100
-        return fitnessScore, np.array(validPrediction, dtype = np.float32), np.array(validActual, dtype = np.float32)
+        if cp.isnan(fitnessScore): fitnessScore = -100
+        return fitnessScore, cp.array(validPrediction, dtype = cp.float32), cp.array(validActual, dtype = cp.float32)
         
     def test(self):
         '''
@@ -684,13 +684,13 @@ class AlphaEvolve():
             self.addM0(i)
             self.predict()
             self.addS0(i)
-            testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
+            testScore.append(cp.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0, 1])
             testPrediction.append(self.OperandsValues['s1'].copy())
             testActual.append(self.OperandsValues['s0'].copy())
-        testScore = sum(testScore)/len(testScore)/np.std(testScore)
+        testScore = sum(testScore) / len(testScore) / cp.std(testScore)
         #if test score is nan -> s1 is constance -> set test score to the lowest value possible
-        if np.isnan(testScore): testScore = -100
-        return  testScore, np.array(testPrediction, dtype = np.float32), np.array(testActual, dtype = np.float32)
+        if cp.isnan(testScore): testScore = -100
+        return testScore, cp.array(testPrediction, dtype = cp.float32), cp.array(testActual, dtype = cp.float32)
     
     def setup(self):
         '''
@@ -859,7 +859,7 @@ class AlphaEvolve():
     def pickTournament(self):
         #    randomly choose tournamentLength alphas in population and bestfit alpha
         # -> this method facilitate to choose best fit alpha ever (even if that alpha is not in population)
-        self.tournament = np.random.choice(self.population + [self.bestFit[0]], replace = False, size = self.tournamentLength)
+        self.tournament = cp.random.choice(self.population + [self.bestFit[0]], replace = False, size = self.tournamentLength)
     
     def extractAlpha(self):
         alpha = self.bestFit[0]
@@ -931,9 +931,9 @@ class AlphaEvolve():
         
         
         if op == 4:
-            if (np.array(self.OperandsValues[Inputs[1]])==None).any():
+            if (cp.array(self.OperandsValues[Inputs[1]]) == None).any():
                 pass
-            elif (np.round(np.array(self.OperandsValues[Inputs[1]]), 6) == 0).any():
+            elif (cp.round(cp.array(self.OperandsValues[Inputs[1]]), 6) == 0).any():
                 for i in range(len(self.symbolList)):
                     #print('DEL:', Operation)
                     symbol = self.symbolList[i]
@@ -987,9 +987,9 @@ class AlphaEvolve():
         
         
         if op == 6:
-            if (np.array(self.OperandsValues[Inputs[0]]) == None).any():
+            if (cp.array(self.OperandsValues[Inputs[0]]) == None).any():
                 pass
-            elif (np.round(np.array(self.OperandsValues[Inputs[0]]), 6) == 0).any():
+            elif (cp.round(cp.array(self.OperandsValues[Inputs[0]]), 6) == 0).any():
                 for i in range(len(self.symbolList)):
                     #print('DEL:', Operation)
                     symbol = self.symbolList[i]
@@ -1040,9 +1040,9 @@ class AlphaEvolve():
                 
         
         if op in [10, 11]:
-            if (np.array(self.OperandsValues[Inputs[0]]) == None).any():
+            if (cp.array(self.OperandsValues[Inputs[0]]) == None).any():
                 pass
-            elif (abs(np.round(np.array(self.OperandsValues[Inputs[0]]), 6)) > 1).any():
+            elif (abs(cp.round(cp.array(self.OperandsValues[Inputs[0]]), 6)) > 1).any():
                 for i in range(len(self.symbolList)):
                     #print('DEL:', Operation)
                     symbol = self.symbolList[i]
@@ -1072,9 +1072,9 @@ class AlphaEvolve():
                 
         
         if op == 14:
-            if (np.array(self.OperandsValues[Inputs[0]]) == None).any():
+            if (cp.array(self.OperandsValues[Inputs[0]]) == None).any():
                 pass
-            elif (np.round(np.array(self.OperandsValues[Inputs[0]]), 6) <= 0).any():
+            elif (cp.round(cp.array(self.OperandsValues[Inputs[0]]), 6) <= 0).any():
                 for i in range(len(self.symbolList)):
                     #print('DEL:', Operation)
                     symbol = self.symbolList[i]
@@ -1110,9 +1110,9 @@ class AlphaEvolve():
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if vectorInput.value is None:
                     if vectorOutput.shape is None:
-                        vectorInput.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                        vectorInput.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     else:
-                        vectorInput.updateValue(np.ones(vectorOutput.shape)) # len = len of output
+                        vectorInput.updateValue(cp.ones(vectorOutput.shape)) # len = len of output
                     self.OperandsValues[Inputs[0]][i] = vectorInput.value
                 
                 #if input and output shape do not match -> delete this operation
@@ -1139,9 +1139,9 @@ class AlphaEvolve():
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if matrixInput.value is None:
                     if matrixOutput.shape is None:
-                        matrixInput.updateValue(np.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
+                        matrixInput.updateValue(cp.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
                     else:
-                        matrixInput.updateValue(np.ones(shape = matrixOutput.shape)) # shape = shape of output
+                        matrixInput.updateValue(cp.ones(shape = matrixOutput.shape)) # shape = shape of output
                     self.OperandsValues[Inputs[0]][i] = matrixInput.value
                 
                 #if input and output shape do not match -> delete this operation
@@ -1155,7 +1155,7 @@ class AlphaEvolve():
                     if op == 17:
                         outputValue = OP17(matrixInput)
                     elif op == 30:
-                        if (np.round(matrixInput.value, 6) != 0).all():
+                        if (cp.round(matrixInput.value, 6) != 0).all():
                             outputValue = OP30(matrixInput)
                         else:
                             #print('DEL:', Operation)
@@ -1184,9 +1184,9 @@ class AlphaEvolve():
                     self.OperandsValues[Inputs[0]][i] = 1
                 if vectorInput.value is None:
                     if vectorOutput.shape is None:
-                        vectorInput.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                        vectorInput.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     else:
-                        vectorInput.updateValue(np.ones(vectorOutput.shape)) # len = len of output
+                        vectorInput.updateValue(cp.ones(vectorOutput.shape)) # len = len of output
                     self.OperandsValues[Inputs[1]][i] = vectorInput.value
                     
                 #if input and output shape do not match -> delete this operation
@@ -1229,9 +1229,9 @@ class AlphaEvolve():
         
         
         if op == 20:
-            if (np.array(self.OperandsValues[Inputs[0]])==None).any():
+            if (cp.array(self.OperandsValues[Inputs[0]]) == None).any():
                 pass
-            elif (np.round(np.array(self.OperandsValues[Inputs[0]]), 6) == 0).any():
+            elif (cp.round(cp.array(self.OperandsValues[Inputs[0]]), 6) == 0).any():
                 for i in range(len(self.symbolList)):
                     #print('DEL:', Operation)
                     symbol = self.symbolList[i]
@@ -1249,9 +1249,9 @@ class AlphaEvolve():
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if vectorInput.value is None:
                     if vectorOutput.shape is None:
-                        vectorInput.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                        vectorInput.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     else:
-                        vectorInput.updateValue(np.ones(vectorOutput.shape)) # len = len of output
+                        vectorInput.updateValue(cp.ones(vectorOutput.shape)) # len = len of output
                     self.OperandsValues[Inputs[0]][i] = vectorInput.value
                     
                 #if input and output shape do not match -> delete this operation
@@ -1277,7 +1277,7 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if vectorInput.value is None:
-                    vectorInput.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[0]][i] = vectorInput.value
                     
                 if op == 21:
@@ -1301,9 +1301,9 @@ class AlphaEvolve():
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if vectorInput.value is None:
                     if vectorOutput.shape is None:
-                        vectorInput.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                        vectorInput.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     else:
-                        vectorInput.updateValue(np.ones(vectorOutput.shape)) # len = len of output
+                        vectorInput.updateValue(cp.ones(vectorOutput.shape)) # len = len of output
                     self.OperandsValues[Inputs[0]][i] = vectorInput.value
                 #if input and output shape do not match -> delete this operation
                 if vectorInput.shape is not None and vectorOutput.shape is not None and vectorInput.shape != vectorOutput.shape:
@@ -1329,26 +1329,26 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if vectorInput1.shape is None and vectorInput2.shape is None and vectorOutput.shape is None:
-                    vectorInput1.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput1.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[0]][i] = vectorInput1.value
-                    vectorInput2.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput2.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[1]][i] = vectorInput2.value
                 elif vectorInput1.shape is None and vectorInput2.shape is None and vectorOutput.shape is not None:
-                    vectorInput1.updateValue(np.ones(vectorOutput.shape))
+                    vectorInput1.updateValue(cp.ones(vectorOutput.shape))
                     self.OperandsValues[Inputs[0]][i] = vectorInput1.value
-                    vectorInput2.updateValue(np.ones(vectorOutput.shape))
+                    vectorInput2.updateValue(cp.ones(vectorOutput.shape))
                     self.OperandsValues[Inputs[1]][i] = vectorInput2.value
                 elif vectorInput1.shape is None and vectorInput2.shape is not None and vectorOutput.shape is None:
-                    vectorInput1.updateValue(np.ones(vectorInput2.shape))
+                    vectorInput1.updateValue(cp.ones(vectorInput2.shape))
                     self.OperandsValues[Inputs[0]][i] = vectorInput1.value
                 elif vectorInput1.shape is not None and vectorInput2.shape is None and vectorOutput.shape is None:
-                    vectorInput2.updateValue(np.ones(vectorInput1.shape))
+                    vectorInput2.updateValue(cp.ones(vectorInput1.shape))
                     self.OperandsValues[Inputs[1]][i] = vectorInput2.value
                 elif vectorInput1.shape is None and vectorInput2.shape is not None and vectorOutput.shape is not None and vectorInput2.shape == vectorOutput.shape:
-                    vectorInput1.updateValue(np.ones(vectorOutput.shape))
+                    vectorInput1.updateValue(cp.ones(vectorOutput.shape))
                     self.OperandsValues[Inputs[0]][i] = vectorInput1.value
                 elif vectorInput1.shape is not None and vectorInput2.shape is None and vectorOutput.shape is not None and vectorInput1.shape == vectorOutput.shape:
-                    vectorInput2.updateValue(np.ones(vectorOutput.shape))
+                    vectorInput2.updateValue(cp.ones(vectorOutput.shape))
                     self.OperandsValues[Inputs[1]][i] = vectorInput2.value
                 elif vectorInput1.shape is not None and vectorInput2.shape is not None and vectorOutput.shape is None and vectorInput1.shape == vectorInput2.shape:
                     pass
@@ -1368,7 +1368,7 @@ class AlphaEvolve():
                 elif op == 25:
                     outputValue = OP25(vectorInput1, vectorInput2)
                 elif op == 26:
-                    if (np.round(vectorInput2.value, 6) != 0).all():
+                    if (cp.round(vectorInput2.value, 6) != 0).all():
                         outputValue = OP26(vectorInput1, vectorInput2)
                     else:
                         #print('DEL:', Operation, vectorInput1.shape, vectorInput2.shape, vectorOutput.shape)
@@ -1395,15 +1395,15 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if vectorInput1.shape is None and vectorInput2.shape is None:
-                    vectorInput1.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput1.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[0]][i] = vectorInput1.value
-                    vectorInput2.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput2.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[1]][i] = vectorInput2.value
                 elif vectorInput1.shape is None and vectorInput2.shape is not None:
-                    vectorInput1.updateValue(np.ones(vectorInput2.shape))
+                    vectorInput1.updateValue(cp.ones(vectorInput2.shape))
                     self.OperandsValues[Inputs[0]][i] = vectorInput1.value
                 elif vectorInput1.shape is not None and vectorInput2.shape is None:
-                    vectorInput2.updateValue(np.ones(vectorInput1.shape))
+                    vectorInput2.updateValue(cp.ones(vectorInput1.shape))
                     self.OperandsValues[Inputs[1]][i] = vectorInput2.value
                 elif vectorInput1.shape is not None and vectorInput2.shape is not None and vectorInput1.shape == vectorInput2.shape:
                     pass
@@ -1430,26 +1430,26 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if vectorInput1.shape is None and vectorInput2.shape is None and matrixOutput.shape is None:
-                    vectorInput1.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput1.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[0]][i] = vectorInput1.value
-                    vectorInput2.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput2.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[1]][i] = vectorInput2.value
                 elif vectorInput1.shape is None and vectorInput2.shape is None and matrixOutput.shape is not None:
-                    vectorInput1.updateValue(np.ones(matrixOutput.shape[0]))
+                    vectorInput1.updateValue(cp.ones(matrixOutput.shape[0]))
                     self.OperandsValues[Inputs[0]][i] = vectorInput1.value
-                    vectorInput2.updateValue(np.ones(matrixOutput.shape[1]))
+                    vectorInput2.updateValue(cp.ones(matrixOutput.shape[1]))
                     self.OperandsValues[Inputs[1]][i] = vectorInput2.value
                 elif vectorInput1.shape is None and vectorInput2.shape is not None and matrixOutput.shape is None:
-                    vectorInput1.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput1.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[0]][i] = vectorInput1.value
                 elif vectorInput1.shape is not None and vectorInput2.shape is None and matrixOutput.shape is None:
-                    vectorInput2.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput2.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[1]][i] = vectorInput2.value
                 elif vectorInput1.shape is None and vectorInput2.shape is not None and matrixOutput.shape is not None and vectorInput2.shape == matrixOutput.shape[1]:
-                    vectorInput1.updateValue(np.ones(matrixOutput.shape[0]))
+                    vectorInput1.updateValue(cp.ones(matrixOutput.shape[0]))
                     self.OperandsValues[Inputs[0]][i] = vectorInput1.value
                 elif vectorInput1.shape is not None and vectorInput2.shape is None and matrixOutput.shape is not None and vectorInput1.shape == matrixOutput.shape[0]:
-                    vectorInput2.updateValue(np.ones(matrixOutput.shape[1]))
+                    vectorInput2.updateValue(cp.ones(matrixOutput.shape[1]))
                     self.OperandsValues[Inputs[1]][i] = vectorInput2.value
                 elif vectorInput1.shape is not None and vectorInput2.shape is not None and matrixOutput.shape is None:
                     pass
@@ -1481,10 +1481,10 @@ class AlphaEvolve():
                     scalarInput.updateValue(1)
                     self.OperandsValues[Inputs[0]][i] = 1
                 if matrixInput.shape is None and matrixOutput.shape is None:
-                    matrixInput.updateValue(np.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
+                    matrixInput.updateValue(cp.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
                     self.OperandsValues[Inputs[1]][i] = matrixInput.value
                 elif matrixInput.shape is None and matrixOutput.shape is not None:
-                    matrixInput.updateValue(np.ones(shape = matrixOutput.shape))
+                    matrixInput.updateValue(cp.ones(shape = matrixOutput.shape))
                     self.OperandsValues[Inputs[1]][i] = matrixInput.value
                 elif matrixInput.shape is not None and matrixOutput.shape is None: 
                     pass
@@ -1513,26 +1513,26 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if matrixInput.shape is None and vectorInput.shape is None and vectorOutput.shape is None:
-                    matrixInput.updateValue(np.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
+                    matrixInput.updateValue(cp.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
                     self.OperandsValues[Inputs[0]][i] = matrixInput.value
-                    vectorInput.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[1]][i] = vectorInput.value
                 elif matrixInput.shape is None and vectorInput.shape is None and vectorOutput.shape is not None:
-                    vectorInput.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[1]][i] = vectorInput.value
-                    matrixInput.updateValue(np.ones(shape = (vectorOutput.shape, vectorInput.shape)))
+                    matrixInput.updateValue(cp.ones(shape = (vectorOutput.shape, vectorInput.shape)))
                     self.OperandsValues[Inputs[0]][i] = matrixInput.value
                 elif matrixInput.shape is None and vectorInput.shape is not None and vectorOutput.shape is None:
-                    matrixInput.updateValue(np.ones(shape = (self.window, vectorInput.shape))) # len = window
+                    matrixInput.updateValue(cp.ones(shape = (self.window, vectorInput.shape))) # len = window
                     self.OperandsValues[Inputs[0]][i] = matrixInput.value
                 elif matrixInput.shape is not None and vectorInput.shape is None and vectorOutput.shape is None:
-                    vectorInput.updateValue(np.ones(matrixInput.shape[1]))
+                    vectorInput.updateValue(cp.ones(matrixInput.shape[1]))
                     self.OperandsValues[Inputs[1]][i] = vectorInput.value
                 elif matrixInput.shape is None and vectorInput.shape is not None and vectorOutput.shape is not None:
-                    matrixInput.updateValue(np.ones(shape = (vectorOutput.shape, vectorInput.shape)))
+                    matrixInput.updateValue(cp.ones(shape = (vectorOutput.shape, vectorInput.shape)))
                     self.OperandsValues[Inputs[0]][i] = matrixInput.value
                 elif matrixInput.shape is not None and vectorInput.shape is None and vectorOutput.shape is not None and matrixInput.shape[0] == vectorOutput.shape:
-                    vectorInput.updateValue(np.ones(matrixInput.shape[1]))
+                    vectorInput.updateValue(cp.ones(matrixInput.shape[1]))
                     self.OperandsValues[Inputs[1]][i] = vectorInput.value
                 elif matrixInput.shape is not None and vectorInput.shape is not None and vectorOutput.shape is None and matrixInput.shape[1] == vectorInput.shape:
                     pass
@@ -1561,10 +1561,10 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if vectorInput.shape is None and matrixOutput.shape is None:
-                    vectorInput.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[0]][i] = vectorInput.value
                 elif vectorInput.shape is None and matrixOutput.shape is not None and matrixOutput.shape[0] == integerInput:
-                    vectorInput.updateValue(np.ones(matrixOutput.shape[1]))
+                    vectorInput.updateValue(cp.ones(matrixOutput.shape[1]))
                     self.OperandsValues[Inputs[0]][i] = vectorInput.value
                 elif vectorInput.shape is not None and matrixOutput.shape is None:
                     pass
@@ -1593,10 +1593,10 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if vectorInput.shape is None and matrixOutput.shape is None:
-                    vectorInput.updateValue(np.ones(len(self.featuresList))) #len = number of features
+                    vectorInput.updateValue(cp.ones(len(self.featuresList))) #len = number of features
                     self.OperandsValues[Inputs[0]][i] = vectorInput.value
                 elif vectorInput.shape is None and matrixOutput.shape is not None and matrixOutput.shape[1] == integerInput:
-                    vectorInput.updateValue(np.ones(matrixOutput.shape[0]))
+                    vectorInput.updateValue(cp.ones(matrixOutput.shape[0]))
                     self.OperandsValues[Inputs[0]][i] = vectorInput.value
                 elif vectorInput.shape is not None and matrixOutput.shape is None:
                     pass
@@ -1624,7 +1624,7 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if matrixInput.shape is None:
-                    matrixInput.updateValue(np.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
+                    matrixInput.updateValue(cp.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
                     self.OperandsValues[Inputs[0]][i] = matrixInput.value
                 
                 if op == 34:
@@ -1646,10 +1646,10 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if matrixInput.shape is None and vectorOutput.shape is None:
-                    matrixInput.updateValue(np.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
+                    matrixInput.updateValue(cp.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
                     self.OperandsValues[Inputs[0]][i] = matrixInput.value
                 elif matrixInput.shape is None and vectorOutput.shape is not None:
-                    matrixInput.updateValue(np.ones(shape = (vectorOutput.shape, len(self.featuresList))))
+                    matrixInput.updateValue(cp.ones(shape = (vectorOutput.shape, len(self.featuresList))))
                     self.OperandsValues[Inputs[0]][i] = matrixInput.value
                 elif matrixInput.shape is not None and vectorOutput.shape is None:
                     pass
@@ -1682,10 +1682,10 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if matrixInput.shape is None and vectorOutput.shape is None:
-                    matrixInput.updateValue(np.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
+                    matrixInput.updateValue(cp.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
                     self.OperandsValues[Inputs[0]][i] = matrixInput.value
                 elif matrixInput.shape is None and vectorOutput.shape is not None:
-                    matrixInput.updateValue(np.ones(shape = (len(self.featuresList), vectorOutput.shape)))
+                    matrixInput.updateValue(cp.ones(shape = (len(self.featuresList), vectorOutput.shape)))
                     self.OperandsValues[Inputs[0]][i] = matrixInput.value
                 elif matrixInput.shape is not None and vectorOutput.shape is None:
                     pass
@@ -1713,10 +1713,10 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if matrixInput.shape is None and matrixOutput.shape is None:
-                    matrixInput.updateValue(np.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
+                    matrixInput.updateValue(cp.ones(shape = (self.window, len(self.featuresList)))) # shape = shape of m0
                     self.OperandsValues[Inputs[0]][i] = matrixInput.value
                 elif matrixInput.shape is None and matrixOutput.shape is not None:
-                    matrixInput.updateValue(np.ones(shape = (matrixOutput.shape[1], matrixOutput.shape[0])))
+                    matrixInput.updateValue(cp.ones(shape = (matrixOutput.shape[1], matrixOutput.shape[0])))
                     self.OperandsValues[Inputs[0]][i] = matrixInput.value
                 elif matrixInput.shape is not None and matrixOutput.shape is None:
                     pass
@@ -1745,26 +1745,26 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if matrixInput1.shape is None and matrixInput2.shape is None and matrixOutput.shape is None:
-                    matrixInput1.updateValue(np.ones(shape = (self.window, len(self.featuresList)))) #shape = shape of m0
+                    matrixInput1.updateValue(cp.ones(shape = (self.window, len(self.featuresList)))) #shape = shape of m0
                     self.OperandsValues[Inputs[0]][i] = matrixInput1.value
-                    matrixInput2.updateValue(np.ones(shape = (self.window, len(self.featuresList)))) #shape = shape of m0
+                    matrixInput2.updateValue(cp.ones(shape = (self.window, len(self.featuresList)))) #shape = shape of m0
                     self.OperandsValues[Inputs[1]][i] = matrixInput2.value
                 elif matrixInput1.shape is None and matrixInput2.shape is None and matrixOutput.shape is not None:
-                    matrixInput1.updateValue(np.ones(shape = matrixOutput.shape))
+                    matrixInput1.updateValue(cp.ones(shape = matrixOutput.shape))
                     self.OperandsValues[Inputs[0]][i] = matrixInput1.value
-                    matrixInput2.updateValue(np.ones(shape = matrixOutput.shape))
+                    matrixInput2.updateValue(cp.ones(shape = matrixOutput.shape))
                     self.OperandsValues[Inputs[1]][i] = matrixInput2.value
                 elif matrixInput1.shape is None and matrixInput2.shape is not None and matrixOutput.shape is None:
-                    matrixInput1.updateValue(np.ones(shape = matrixInput2.shape))
+                    matrixInput1.updateValue(cp.ones(shape = matrixInput2.shape))
                     self.OperandsValues[Inputs[0]][i] = matrixInput1.value
                 elif matrixInput1.shape is not None and matrixInput2.shape is None and matrixOutput.shape is None:
-                    matrixInput2.updateValue(np.ones(shape = matrixInput1.shape))
+                    matrixInput2.updateValue(cp.ones(shape = matrixInput1.shape))
                     self.OperandsValues[Inputs[1]][i] = matrixInput2.value
                 elif matrixInput1.shape is None and matrixInput2.shape is not None and matrixOutput.shape is not None and matrixInput2.shape == matrixOutput.shape:
-                    matrixInput1.updateValue(np.ones(shape = matrixOutput.shape))
+                    matrixInput1.updateValue(cp.ones(shape = matrixOutput.shape))
                     self.OperandsValues[Inputs[0]][i] = matrixInput1.value
                 elif matrixInput1.shape is not None and matrixInput2.shape is None and matrixOutput.shape is not None and matrixInput1.shape == matrixOutput.shape:
-                    matrixInput2.updateValue(np.ones(shape = matrixOutput.shape))
+                    matrixInput2.updateValue(cp.ones(shape = matrixOutput.shape))
                     self.OperandsValues[Inputs[1]][i] = matrixInput2.value
                 elif matrixInput1.shape is not None and matrixInput2.shape is not None and matrixOutput.shape is None and matrixInput1.shape == matrixInput2.shape:
                     pass
@@ -1784,7 +1784,7 @@ class AlphaEvolve():
                 elif op == 41:
                     outputValue = OP41(matrixInput1, matrixInput2)
                 elif op == 42:
-                    if (np.round(matrixInput2.value,6) != 0).all():
+                    if (cp.round(matrixInput2.value, 6) != 0).all():
                         outputValue = OP42(matrixInput1, matrixInput2)
                     else:
                         #print('DEL:', Operation, matrixInput1.shape, matrixInput2.shape, matrixOutput.shape)
@@ -1811,29 +1811,29 @@ class AlphaEvolve():
                 
                 #make sure input value is not None. If it is None -> initiate to be 1
                 if matrixInput1.shape is None and matrixInput2.shape is None and matrixOutput.shape is None:
-                    matrixInput1.updateValue(np.ones(shape = (len(self.featuresList), self.window))) #shape = shape of m0.T
+                    matrixInput1.updateValue(cp.ones(shape = (len(self.featuresList), self.window))) #shape = shape of m0.T
                     self.OperandsValues[Inputs[0]][i] = matrixInput1.value
-                    matrixInput2.updateValue(np.ones(shape = (self.window, len(self.featuresList)))) #shape = shape of m0
+                    matrixInput2.updateValue(cp.ones(shape = (self.window, len(self.featuresList)))) #shape = shape of m0
                     self.OperandsValues[Inputs[1]][i] = matrixInput2.value
                 elif matrixInput1.shape is None and matrixInput2.shape is None and matrixOutput.shape is not None:
-                    randomLength = np.random.randint(2, 20)
-                    matrixInput1.updateValue(np.ones(shape = (matrixOutput.shape[0], randomLength)))
+                    randomLength = cp.random.randint(2, 20)
+                    matrixInput1.updateValue(cp.ones(shape = (matrixOutput.shape[0], randomLength)))
                     self.OperandsValues[Inputs[0]][i] = matrixInput1.value
-                    matrixInput2.updateValue(np.ones(shape = (randomLength, matrixOutput.shape[1])))
+                    matrixInput2.updateValue(cp.ones(shape = (randomLength, matrixOutput.shape[1])))
                     self.OperandsValues[Inputs[1]][i] = matrixInput2.value
                 elif matrixInput1.shape is None and matrixInput2.shape is not None and matrixOutput.shape is None:
-                    randomLength = np.random.randint(2, 20)
-                    matrixInput1.updateValue(np.ones(shape = (randomLength, matrixInput2.shape[0])))
+                    randomLength = cp.random.randint(2, 20)
+                    matrixInput1.updateValue(cp.ones(shape = (randomLength, matrixInput2.shape[0])))
                     self.OperandsValues[Inputs[0]][i] = matrixInput1.value
                 elif matrixInput1.shape is not None and matrixInput2.shape is None and matrixOutput.shape is None:
-                    randomLength = np.random.randint(2, 20)
-                    matrixInput2.updateValue(np.ones(shape = (matrixInput1.shape[1], randomLength)))
+                    randomLength = cp.random.randint(2, 20)
+                    matrixInput2.updateValue(cp.ones(shape = (matrixInput1.shape[1], randomLength)))
                     self.OperandsValues[Inputs[1]][i] = matrixInput2.value
                 elif matrixInput1.shape is None and matrixInput2.shape is not None and matrixOutput.shape is not None and matrixInput2.shape[1] == matrixOutput.shape[1]:
-                    matrixInput1.updateValue(np.ones(shape = (matrixOutput.shape[0], matrixInput2.shape[0])))
+                    matrixInput1.updateValue(cp.ones(shape = (matrixOutput.shape[0], matrixInput2.shape[0])))
                     self.OperandsValues[Inputs[0]][i] = matrixInput1.value
                 elif matrixInput1.shape is not None and matrixInput2.shape is None and matrixOutput.shape is not None and matrixInput1.shape[0] == matrixOutput.shape[0]:
-                    matrixInput2.updateValue(np.ones(shape = (matrixInput1.shape[1], matrixOutput.shape[1])))
+                    matrixInput2.updateValue(cp.ones(shape = (matrixInput1.shape[1], matrixOutput.shape[1])))
                     self.OperandsValues[Inputs[1]][i] = matrixInput2.value
                 elif matrixInput1.shape is not None and matrixInput2.shape is not None and matrixOutput.shape is None and matrixInput1.shape[1] == matrixInput2.shape[0]:
                     pass
