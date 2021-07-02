@@ -333,7 +333,7 @@ class AlphaEvolve():
             validAlpha = []
 
             ctx = multiprocessing.get_context('spawn')
-            pool = ctx.Pool(2)
+            pool = ctx.Pool()
             count = 0
             for fitnessScore, dailyReturns, annualizedReturns, sharpe in pool.imap(self.parallelNewMutate, newMutate):
                 if fitnessScore != -1:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
@@ -535,7 +535,7 @@ class AlphaEvolve():
         None.
         '''
         ctx = multiprocessing.get_context('spawn')
-        pool = ctx.Pool(4)
+        pool = ctx.Pool()
         count = 0
         for x in pool.imap(self.parallelPopulation, self.population[:self.populationLength]):
             print("Done:", count)
