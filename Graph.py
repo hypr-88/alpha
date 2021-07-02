@@ -179,9 +179,9 @@ class Graph():
         '''
         if nodes is not None:
             self.nodes = copy.deepcopy(nodes)
-            self.sCount = len([key for key in self.nodes.keys() if 's' in key])+1
-            self.vCount = len([key for key in self.nodes.keys() if 'v' in key])+1
-            self.mCount = len([key for key in self.nodes.keys() if 'm' in key])+1
+            self.sCount = max([int(key[1:]) for key in self.nodes.keys() if 's' in key]+[1])+1
+            self.vCount = max([int(key[1:]) for key in self.nodes.keys() if 'v' in key]+[0])+1
+            self.mCount = max([int(key[1:]) for key in self.nodes.keys() if 'm' in key]+[0])+1
             
             if setupOPs is not None:
                 self.setupOPs = copy.deepcopy(setupOPs)

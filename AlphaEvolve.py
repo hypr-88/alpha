@@ -294,7 +294,102 @@ class AlphaEvolve():
         fingerPrint = self.fingerprint()
         fitnessScore, dailyReturns, annualizedReturns, sharpe = self.summaryAlpha()
         return alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues
-
+    
+    def combineAlphas(self, alpha_1, alpha_2):
+        graph_1 = copy.deepcopy(alpha_1.graph)
+        graph_2 = copy.deepcopy(alpha_2.graph)
+        
+        nodes = {}
+        for key, value in graph_1.nodes.items():
+            if key not in {'m0', 's1'}:
+                nodes[key+'1'] = copy.deepcopy(value)
+            elif key == 'm0':
+                nodes[key] = copy.deepcopy(value)
+            elif key == 's1':
+                nodes[key+'1'] = copy.deepcopy(value)
+                nodes[key] = copy.deepcopy(value)
+        for key, value in graph_2.nodes.items():
+            if key != 'm0':
+                nodes[key+'2'] = copy.deepcopy(value)
+        
+        setupOPs_1 = graph_1.setupOPs.copy()
+        setupOPs_2 = graph_2.setupOPs.copy()
+        predictOPs_1 = graph_1.predictOPs.copy()
+        predictOPs_2 = graph_2.predictOPs.copy()
+        updateOPs_1 = graph_1.updateOPs.copy()
+        updateOPs_2 = graph_2.updateOPs.copy()
+        
+        newSetup = []
+        newPredict = []
+        newUpdate = []
+        for operation in setupOPs_1:
+            out, op, inps = operation
+            if isinstance(out, str) and out != 'm0': out += '1'
+            for i, inp in enumerate(inps):
+                if isinstance(inp, str) and inp != 'm0': inps[i] += '1'
+            newSetup.append([out, op, inps])
+        
+        for operation in setupOPs_2:
+            out, op, inps = operation
+            if isinstance(out, str) and out != 'm0': out += '2'
+            for i, inp in enumerate(inps):
+                if isinstance(inp, str) and inp != 'm0': inps[i] += '2'
+            newSetup.append([out, op, inps])
+        
+        for operation in predictOPs_1:
+            out, op, inps = operation
+            if isinstance(out, str) and out != 'm0': out += '1'
+            for i, inp in enumerate(inps):
+                if isinstance(inp, str) and inp != 'm0': inps[i] += '1'
+            newPredict.append([out, op, inps])
+        
+        for operation in predictOPs_2:
+            out, op, inps = operation
+            if isinstance(out, str) and out != 'm0': out += '2'
+            for i, inp in enumerate(inps):
+                if isinstance(inp, str) and inp != 'm0': inps[i] += '2'
+            newPredict.append([out, op, inps])
+        
+        for operation in updateOPs_1:
+            out, op, inps = operation
+            if isinstance(out, str) and out != 'm0': out += '1'
+            for i, inp in enumerate(inps):
+                if isinstance(inp, str) and inp != 'm0': inps[i] += '1'
+            newUpdate.append([out, op, inps])
+        
+        for operation in updateOPs_2:
+            out, op, inps = operation
+            if isinstance(out, str) and out != 'm0': out += '2'
+            for i, inp in enumerate(inps):
+                if isinstance(inp, str) and inp != 'm0': inps[i] += '2'
+            newUpdate.append([out, op, inps])
+        
+        newPredict.append(['s3', 1, ['s11', 's12']])
+        newSetup.append(['s4', 56, [2]])
+        newPredict.append(['s1', 4, ['s3', 's4']])
+        
+        maxNumNodes = graph_1.maxNumNodes + graph_2.maxNumNodes
+        
+        newGraph = Graph(nodes = nodes, setupOPs = newSetup, predictOPs = newPredict, updateOPs = newUpdate, maxNumNodes = maxNumNodes)
+        newAlpha = Alpha(newGraph)
+        return newAlpha
+        
+    def createNewMutate(self):
+        self.pickTournament()
+        bestFit_1, alpha_1 = self.getBestFit(self.tournament)
+        bestFit_2, alpha_2 = self.getBestFit([alpha for alpha in self.tournament if alpha != alpha_1])
+        newMutate = []
+        for i in range(self.numNewAlphaPerMutation):
+            if bestFit_2 < 0 or np.random.binomial(1, bestFit_1/(bestFit_1 + bestFit_2)):
+                newAlpha = copy.deepcopy(alpha_1)
+            else:
+                newAlpha = self.combineAlphas(alpha_1, alpha_2)
+            
+            newAlpha.mutate()
+            newMutate.append(newAlpha)
+                
+        return newMutate
+        
     def run(self):
         '''
         Evolving Method
@@ -315,20 +410,7 @@ class AlphaEvolve():
         self.runFirstPopulation()
         self.summaryBestFit()
         while self.checkTimeBudget():
-            self.pickTournament()
-            bestFit = self.getBestFit()
-            print('BEST FITNESS:', bestFit)
-            
-            newMutate = []
-            for i in range(self.numNewAlphaPerMutation):
-                while True:
-                    try:
-                        newAlpha = copy.deepcopy(self.currAlpha)
-                        newAlpha.mutate()
-                        newMutate.append(newAlpha)
-                        break
-                    except:
-                        continue
+            newMutate = self.createNewMutate()
             
             validAlpha = []
 
@@ -338,7 +420,7 @@ class AlphaEvolve():
             for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues in pool.imap(self.parallelNewMutate, newMutate):
                 if fingerPrint in self.fitnessScore:
                     pass
-                elif fitnessScore != -1:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
+                elif fitnessScore != -100 and np.corrcoef(dailyReturns, self.bestFit[2])[0,1] < 0.7:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
                     validAlpha.append(
                         [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues])
                 
@@ -549,10 +631,10 @@ class AlphaEvolve():
         for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues in \
                 pool.imap(self.parallelPopulation, self.population[:self.populationLength]):
 
-            if fingerPrint in self.fitnessScore:
+            if alpha.fingerprint() in self.fitnessScore:
                 pass
             else:
-                self.fitnessScore[fingerPrint] = fitnessScore
+                self.fitnessScore[alpha.fingerprint()] = fitnessScore
 
             # update best fit alpha ever
             if fitnessScore > self.bestFit[1]:
@@ -877,7 +959,7 @@ class AlphaEvolve():
         plt.show()
         print('=====================================================')
     
-    def getBestFit(self):
+    def getBestFit(self, group: list):
         '''
         return the best fitness score of alpha in attribute tournament and point currAlpha to that alpha
 
@@ -888,12 +970,11 @@ class AlphaEvolve():
 
         '''
         bestFit = -10000
-        for alpha in self.tournament:
+        for alpha in group:
             fitnessScore = self.fitnessScore[alpha.fingerprint()]
             if fitnessScore > bestFit:
                 bestFit = fitnessScore
-                self.currAlpha = alpha
-        return bestFit
+        return bestFit, alpha
     
     def mutate(self):
         #mutate the currAlpha
