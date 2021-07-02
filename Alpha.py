@@ -1066,7 +1066,7 @@ class Alpha():
                 #self.graph.show()
         self.mutate_update()
         self.fillUndefinedOperands()
-        print('mutate done')
+        #print('mutate done')
     
 if __name__ == '__main__':
     a = Graph()
