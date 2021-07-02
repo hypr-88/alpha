@@ -339,7 +339,7 @@ class AlphaEvolve():
                 elif fitnessScore != -1:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
                     validAlpha.append(
                         [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues])
-
+                
                 print("Done:", count)
                 count += 1
 
@@ -541,7 +541,8 @@ class AlphaEvolve():
             # update best fit alpha ever
             if fitnessScore > self.bestFit[1]:
                 self.bestFit = [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues]
-
+            
+            self.population[count] = alpha
             print("Done: ", count)
             count += 1
         pool.close()
