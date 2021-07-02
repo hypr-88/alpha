@@ -1,3 +1,5 @@
+import multiprocessing
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -282,7 +284,17 @@ class AlphaEvolve():
 
         '''
         self.currAlpha = Alpha(graph, maxNumNodes = self.maxNumNodes, mutateProb = 0.9, rf = 0.0001, maxLenShapeNode = self.maxLenShapeNode)
-        
+
+    def parallelNewMutate(self, alpha: Alpha):
+        self.currAlpha = alpha
+        # prunning and get fingerprint
+        self.prunning()
+        fingerPrint = self.fingerprint()
+        if fingerPrint in self.fitnessScore:
+            return -1, -1, -1, -1
+        else:
+            return self.summaryAlpha()
+
     def run(self):
         '''
         Evolving Method
@@ -319,18 +331,20 @@ class AlphaEvolve():
                         continue
             
             validAlpha = []
-            for alpha in newMutate:
-                self.currAlpha = alpha
-                #prunning and get fingerprint
-                self.prunning()
-                fingerPrint = self.fingerprint()
-                if fingerPrint in self.fitnessScore:
-                    continue
-                else:
-                    fitnessScore, dailyReturns, annualizedReturns, sharpe = self.summaryAlpha()
-                    
-                    if fitnessScore != -1: # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
-                        validAlpha.append([self.currAlpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues])
+
+            ctx = multiprocessing.get_context('spawn')
+            pool = ctx.Pool(2)
+            count = 0
+            for fitnessScore, dailyReturns, annualizedReturns, sharpe in pool.imap(self.parallelNewMutate, newMutate):
+                if fitnessScore != -1:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
+                    validAlpha.append(
+                        [self.currAlpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues])
+
+                print("Done:", count)
+                count += 1
+
+            pool.close()
+            pool.join()
             
             if validAlpha == []:
                 print('continue')
@@ -472,7 +486,7 @@ class AlphaEvolve():
                 
             y = self.data[symbol]['return'].iloc[i]
             return np.array(X, dtype = np.float32), np.array(y, dtype = np.float32)
-        
+
     def initiatePopulation(self):
         '''
         Create the first population by mutating the first initiated alpha.
@@ -491,35 +505,43 @@ class AlphaEvolve():
                     break
                 except:
                     continue
-                
+
+    def parallelPopulation(self, alpha: Alpha):
+        self.bestFit = [None, -1000, 0, 0, 0, {}]
+        self.currAlpha = alpha
+        print("Start prunning...")
+        # prunning
+        self.prunning()
+        print("Done prunning...")
+        # evaluation Alpha
+        fitnessScore, dailyReturns, annualizedReturns, sharpe = self.summaryAlpha()
+        print("Done summarising alpha...")
+        # fingerprint
+        fingerPrint = self.fingerprint()
+        if fingerPrint in self.fitnessScore:
+            pass
+        else:
+            self.fitnessScore[fingerPrint] = fitnessScore
+
+        # update best fit alpha ever
+        if fitnessScore > self.bestFit[1]:
+            self.bestFit = [self.currAlpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues]
+
     def runFirstPopulation(self):
         '''
         Evaluate all alpha in the first population
-
         Returns
         -------
         None.
-
         '''
-        self.bestFit = [None, -1000, 0, 0, 0, {}]
-        for i in range(self.populationLength):
-            self.currAlpha = self.population[i]
-            #prunning
-            self.prunning()
-                
-            #evaluation Alpha
-            fitnessScore, dailyReturns, annualizedReturns, sharpe = self.summaryAlpha()
-            
-            #fingerprint
-            fingerPrint = self.fingerprint()
-            if fingerPrint in self.fitnessScore:
-                pass
-            else:
-                self.fitnessScore[fingerPrint] = fitnessScore
-            
-            #update best fit alpha ever
-            if fitnessScore > self.bestFit[1]:
-                self.bestFit = [self.currAlpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues]
+        ctx = multiprocessing.get_context('spawn')
+        pool = ctx.Pool(4)
+        count = 0
+        for x in pool.imap(self.parallelPopulation, self.population[:self.populationLength]):
+            print("Done:", count)
+            count += 1
+        pool.close()
+        pool.join()
     
     def evaluate(self):
         '''
