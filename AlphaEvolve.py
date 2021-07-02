@@ -16,7 +16,7 @@ from dateutil.relativedelta import relativedelta
 
 from zipfile import ZipFile
 import os
-
+np.seterr(divide='ignore', invalid='ignore')
 class AlphaEvolve():
     '''
     Main class to run alpha evolve

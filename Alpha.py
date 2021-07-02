@@ -3,6 +3,8 @@ import copy
 from Operands import Scalar, Vector, Matrix
 
 from Graph import Graph
+np.seterr(divide='ignore', invalid='ignore')
+
 class Alpha():
     '''
     Class used to present an alpha

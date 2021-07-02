@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import rankdata
 from Operands import Scalar, Vector, Matrix
-
+np.seterr(divide='ignore', invalid='ignore')
 '''
 Notes: s stands for Scalar, v stands for Vector, m stands for Matrix
 Definition of 67 functions of operations:
