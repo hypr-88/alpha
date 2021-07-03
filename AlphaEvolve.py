@@ -311,6 +311,8 @@ class AlphaEvolve():
         for key, value in graph_2.nodes.items():
             if key != 'm0':
                 nodes[key+'2'] = copy.deepcopy(value)
+        nodes['s3'] = Scalar()
+        nodes['s4'] = Scalar(2)
         
         setupOPs_1 = graph_1.setupOPs.copy()
         setupOPs_2 = graph_2.setupOPs.copy()
@@ -380,13 +382,19 @@ class AlphaEvolve():
         bestFit_2, alpha_2 = self.getBestFit([alpha for alpha in self.tournament if alpha != alpha_1])
         newMutate = []
         for i in range(self.numNewAlphaPerMutation):
-            if bestFit_2 < 0 or np.random.binomial(1, bestFit_1/(bestFit_1 + bestFit_2)):
-                newAlpha = copy.deepcopy(alpha_1)
-            else:
-                newAlpha = self.combineAlphas(alpha_1, alpha_2)
+            while True:
+                try:
+                    if bestFit_2 < 0 or np.random.binomial(1, bestFit_1/(bestFit_1 + bestFit_2)):
+                        newAlpha = copy.deepcopy(alpha_1)
+                    else:
+                        newAlpha = self.combineAlphas(alpha_1, alpha_2)
+                    
+                    newAlpha.mutate()
+                    newMutate.append(newAlpha)
+                    break
+                except:
+                    continue
             
-            newAlpha.mutate()
-            newMutate.append(newAlpha)
                 
         return newMutate
         
