@@ -484,19 +484,19 @@ class AlphaEvolve():
 
         '''
         main_curr = ['ADA', 'BCH', 'BNB', 'BTC', 'DASH', 'EOS', 'ETH', 'LTC', 'NEO', 'TRX', 'XEM', 'XLM', 'XMR', 'XRP', 'ZEC', 'USDS']
-        main_curr = ['BTC', 'EOS', 'ETH', 'LTC']
+        #main_curr = ['BTC', 'EOS', 'ETH', 'LTC']
         main_pairs = [pair+'USDT' for pair in main_curr]
         self.data = {}
         with ZipFile(self.file, "r") as zip_ref:
            # Get list of files names in zip
-           #list_of_files = zip_ref.namelist()
-        
+           list_of_files = zip_ref.namelist()
+           
            # Iterate over the list of file names in given list
-           #for elem in list_of_files:
-               #get the symbol
-               #symbol = os.path.splitext(elem)[0]
+           for elem in list_of_files:
+                #get the symbol
+                symbol = os.path.splitext(elem)[0]
  
-            for symbol in main_pairs:
+            #for symbol in main_pairs:
                 #read csv
                 with zip_ref.open(symbol+'.csv') as f:
                     df = pd.read_csv(f)
@@ -521,7 +521,7 @@ class AlphaEvolve():
                     new_df.dropna(inplace = True)
                     
                     #filter data have start date before 2020 and end date on 2021-5-31
-                    if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2020, 1, 1):
+                    if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2019, 1, 1):
                         self.data[symbol] = new_df
         
         self.symbolList = list(self.data.keys())
@@ -764,7 +764,7 @@ class AlphaEvolve():
         None.
 
         '''
-        for i in range(self.window, self.trainLength):
+        for i in range(self.window, self.dataLength - 1): #self.trainLength):
             #self.currAlpha.graph.show()
             self.addM0(i)
             self.setup()
@@ -812,7 +812,7 @@ class AlphaEvolve():
         testScore = []
         testPrediction = []
         testActual = []
-        for i in range(self.trainLength + self.validLength, self.dataLength - 1):
+        for i in range(self.window, self.dataLength - 1): #(self.trainLength + self.validLength, self.dataLength - 1):
             #self.currAlpha.graph.show()
             self.addM0(i)
             self.predict()
