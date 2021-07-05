@@ -1,6 +1,7 @@
 from multiprocessing import Pool
 
 import cupy as cp
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import copy
@@ -676,13 +677,13 @@ class AlphaEvolve():
             self.setup()
             self.predict()
             self.addS0(i)
-            fitnessScore.append(cp.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0, 1])
+            fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0, 1])
             validPrediction.append(self.OperandsValues['s1'].copy())
             validActual.append(self.OperandsValues['s0'].copy())
-        fitnessScore = sum(fitnessScore) / len(fitnessScore) / cp.std(fitnessScore)
+        fitnessScore = sum(fitnessScore) / len(fitnessScore) / np.std(fitnessScore)
 
         # if fitness score is nan -> s1 is constance -> set fitness score to the lowest value possible
-        if cp.isnan(fitnessScore): fitnessScore = -100
+        if np.isnan(fitnessScore): fitnessScore = -100
         return fitnessScore, cp.array(validPrediction, dtype=cp.float32), cp.array(validActual, dtype=cp.float32)
 
     def test(self):
@@ -704,12 +705,12 @@ class AlphaEvolve():
             self.setup()
             self.predict()
             self.addS0(i)
-            testScore.append(cp.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0, 1])
+            testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0, 1])
             testPrediction.append(self.OperandsValues['s1'].copy())
             testActual.append(self.OperandsValues['s0'].copy())
-        testScore = sum(testScore) / len(testScore) / cp.std(testScore)
+        testScore = sum(testScore) / len(testScore) / np.std(testScore)
         # if test score is nan -> s1 is constance -> set test score to the lowest value possible
-        if cp.isnan(testScore): testScore = -100
+        if np.isnan(testScore): testScore = -100
         return testScore, cp.array(testPrediction, dtype=cp.float32), cp.array(testActual, dtype=cp.float32)
 
     def setup(self):

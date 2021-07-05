@@ -1,8 +1,10 @@
-import cupy as cp
+import numpy as np
 import copy
 from Operands import Scalar, Vector, Matrix
 
 from Graph import Graph
+np.seterr(divide='ignore', invalid='ignore')
+
 class Alpha():
     '''
     Class used to present an alpha
@@ -161,58 +163,58 @@ class Alpha():
         None.
 
         '''
-        if cp.random.binomial(1, self.mutateProb): #90% mutate setup
+        if np.random.binomial(1, self.mutateProb): #90% mutate setup
             prob = self._updateAddOperandProb()
-            if (cp.random.binomial(1, prob) or len(self.graph.setupOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes: #prob% mutating setup by adding Operands
-                newNodes = cp.random.choice([Scalar(), Vector(), Matrix()], size = cp.random.randint(1, 4), replace = False)
+            if (np.random.binomial(1, prob) or len(self.graph.setupOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes: #prob% mutating setup by adding Operands
+                newNodes = np.random.choice([Scalar(), Vector(), Matrix()], size = np.random.randint(1,4), replace = False)
                 for new in newNodes:
                     key = self.graph.addNodes(new)
                     if 's' in key:
-                        if cp.random.randint(2): #normal(0,1)
+                        if np.random.randint(2): #normal(0,1)
                             op = [key, 62, [0, 1]]
                         else: #uniform [-1,1]
                             op = [key, 59, [-1, 1]]
                     
                     if 'v' in key:
-                        length = cp.random.randint(2, self.maxLenShapeNode)
-                        if cp.random.randint(2): #norm(0,1)
+                        length = np.random.randint(2, self.maxLenShapeNode)
+                        if np.random.randint(2): #norm(0,1)
                             op = [key, 63, [0, 1, length]]
                         else: #uniform[-1,1]
                             op = [key, 60, [-1, 1, length]]
                     
                     if 'm' in key:
-                        i = cp.random.randint(2, self.maxLenShapeNode)
-                        j = cp.random.randint(2, self.maxLenShapeNode)
-                        if cp.random.randint(2): #norm(0,1)
+                        i = np.random.randint(2, self.maxLenShapeNode)
+                        j = np.random.randint(2, self.maxLenShapeNode)
+                        if np.random.randint(2): #norm(0,1)
                             op = [key, 64, [0, 1, i, j]]
                         else: #uniform[-1,1]
                             op = [key, 61, [-1, 1, i, j]]
                     
-                    index = cp.random.randint(len(self.graph.setupOPs) + 1)
+                    index = np.random.randint(len(self.graph.setupOPs)+1)
                     self.graph.addSetupOPs(index, op[0], op[1], op[2])
                 
-            elif cp.random.binomial(1, 1 - prob) or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating setup by removing Operands
+            elif np.random.binomial(1, 1-prob) or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating setup by removing Operands
                 if len(self.graph.setupOPs) >= 1:
                     key = 'm0'
                     while key in {'m0', 's1'}: #avoid delete m0 and s1
-                        op_index = cp.random.randint(len(self.graph.setupOPs))
+                        op_index = np.random.randint(len(self.graph.setupOPs))
                         key = self.graph.setupOPs[op_index][0]
                     self.graph.removeNodes(key)
                     self.graph.removeSetupOPs(op_index)
                 
             elif len(self.graph.setupOPs)>=1: # mutating setup by change operation
-                op_index = cp.random.randint(len(self.graph.setupOPs))
+                op_index = np.random.randint(len(self.graph.setupOPs))
                 op = self.graph.setupOPs[op_index]
                 if 's' in op[0]: #scalar
                     if self.graph.nodes[op[0]].value is None:
-                        if cp.random.randint(2): #normal(0,1)
+                        if np.random.randint(2): #normal(0,1)
                             op[1] = 62
                             op[2] = [0, 1]
                         else: #uniform [-1,1]
                             op[1] = 59
                             op[2] = [-1, 1]
                     else:
-                        choice = cp.random.randint(3)
+                        choice = np.random.randint(3)
                         if choice == 2: #constant
                             op[1] = 56
                             op[2] = [float(self.graph.nodes[op[0]].value)]
@@ -225,16 +227,16 @@ class Alpha():
                 
                 if 'v' in op[0]: #vector
                     if self.graph.nodes[op[0]].value is None:
-                        length = cp.random.randint(2, self.maxLenShapeNode)
-                        if cp.random.randint(2): #norm(0,1)
+                        length = np.random.randint(2, self.maxLenShapeNode)
+                        if np.random.randint(2): #norm(0,1)
                             op[1] = 63
                             op[2] = [0, 1, length]
                         else: #uniform[-1,1]
                             op[1] = 60
                             op[2] = [-1, 1, length]
                     else:
-                        val = float(self.graph.nodes[op[0]].value[cp.random.randint(self.graph.nodes[op[0]].shape)])
-                        choice = cp.random.randint(3)
+                        val = float(self.graph.nodes[op[0]].value[np.random.randint(self.graph.nodes[op[0]].shape)])
+                        choice = np.random.randint(3)
                         if choice == 2: #constant
                             op[1] = 57
                             op[2] = [val, self.graph.nodes[op[0]].shape]
@@ -247,20 +249,20 @@ class Alpha():
                 
                 if 'm' in op[0]: #matrix
                     if self.graph.nodes[op[0]].value is None:
-                        i = cp.random.randint(2, self.maxLenShapeNode)
-                        j = cp.random.randint(2, self.maxLenShapeNode)
-                        if cp.random.randint(2): #norm(0,1)
+                        i = np.random.randint(2, self.maxLenShapeNode)
+                        j = np.random.randint(2, self.maxLenShapeNode)
+                        if np.random.randint(2): #norm(0,1)
                             op[1] = 64
                             op[2] = [0, 1, i, j]
                         else: #uniform[-1,1]
                             op[1] = 61
                             op[2] = [-1, 1, i, j]
                     else:
-                        i = cp.random.randint(self.graph.nodes[op[0]].shape[0])
-                        j = cp.random.randint(self.graph.nodes[op[0]].shape[1])
+                        i = np.random.randint(self.graph.nodes[op[0]].shape[0])
+                        j = np.random.randint(self.graph.nodes[op[0]].shape[1])
                         val = float(self.graph.nodes[op[0]].value[i, j])
                         i, j = self.graph.nodes[op[0]].shape
-                        choice = cp.random.randint(3)
+                        choice = np.random.randint(3)
                         if choice == 2: #constant
                             op[1] = 58
                             op[2] = [val, i, j]
@@ -352,7 +354,7 @@ class Alpha():
         None.
 
         '''
-        if cp.random.binomial(1, self.mutateProb): #90% mutate predict
+        if np.random.binomial(1, self.mutateProb): #90% mutate predict
             prob = self._updateAddOperandProb()
             toScalarOp = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,21,27,34,44,47,50,51,54,55,65,66,67]
             toVectorOp = [16,18,19,20,22,23,24,25,26,31,35,36,45,48,52,53]
@@ -360,8 +362,8 @@ class Alpha():
             
             #prob% mutating predict by adding Operands
             #add operands
-            if (cp.random.binomial(1, prob) or len(self.graph.predictOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes:
-                newNodes = cp.random.choice([Scalar(), Vector(), Matrix()], size = cp.random.randint(1, 4), replace = False)
+            if (np.random.binomial(1, prob) or len(self.graph.predictOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes:
+                newNodes = np.random.choice([Scalar(), Vector(), Matrix()], size = np.random.randint(1,4), replace = False)
                 
                 #Add Operations have 'key' as Output
                 for new in newNodes:
@@ -375,21 +377,21 @@ class Alpha():
                         count = 0
                         operation = [None, None, None]
                         while not valid and count<1000: #loops until selecting a valid operation
-                            op = toScalarOp[cp.random.randint(len(toScalarOp))]
+                            op = toScalarOp[np.random.randint(len(toScalarOp))]
                             if op in [1,2,3,4,44,47]: #scalar + scalar -> scalar
-                                node1, node2 = cp.random.choice(ScalarList, size = 2)
+                                node1, node2 = np.random.choice(ScalarList, size = 2)
                                 operation = [key, op, [node1, node2]]
                             if op in [5,6,7,8,9,10,11,12,13,14,15,65,66,67]: #scalar -> scalar
-                                node = cp.random.choice(ScalarList, size = 1)
+                                node = np.random.choice(ScalarList, size = 1)
                                 operation = [key, op, [node]]
                             if op in [21,50,54] and len(VectorList) >= 1: # vector -> scalar
-                                node = cp.random.choice(VectorList, size = 1)
+                                node = np.random.choice(VectorList, size = 1)
                                 operation = [key, op, [node]]
                             if op == 27 and len(VectorList) >= 2: #vector + vector -> scalar
-                                node1, node2 = cp.random.choice(VectorList, size = 2)
+                                node1, node2 = np.random.choice(VectorList, size = 2)
                                 operation = [key, op, [node1, node2]]
                             if op in [34,51,55]: #matrix -> scalar
-                                node = cp.random.choice(MatrixList, size = 1)
+                                node = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node]]
                                 
                             valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
@@ -401,27 +403,27 @@ class Alpha():
                         count = 0
                         operation = [None, None, None]
                         while not valid and count<100: #loops until selecting a valid operation
-                            op = toVectorOp[cp.random.randint(len(toVectorOp))]
+                            op = toVectorOp[np.random.randint(len(toVectorOp))]
                             if op in [16,20,22] and len(VectorList)>=1: #vector -> vector
-                                node = cp.random.choice(VectorList, size = 1)
+                                node = np.random.choice(VectorList, size = 1)
                                 operation = [key, op, [node]]
                             if op == 18 and len(VectorList)>=1: #scalar + vector -> vector
-                                node1 = cp.random.choice(ScalarList, size = 1)
-                                node2 = cp.random.choice(VectorList, size = 1)
+                                node1 = np.random.choice(ScalarList, size = 1)
+                                node2 = np.random.choice(VectorList, size = 1)
                                 operation = [key, op, [node1, node2]]
                             if op == 19: #scalar + int -> vector
-                                node = cp.random.choice(ScalarList, size = 1)
-                                i = cp.random.randint(2, self.maxLenShapeNode)
+                                node = np.random.choice(ScalarList, size = 1)
+                                i = np.random.randint(2,self.maxLenShapeNode)
                                 operation = [key, op, [node, i]]
                             if op in [23,24,25,26,45,48] and len(VectorList)>=2: # vector + vector -> vector
-                                node1, node2 = cp.random.choice(VectorList, size = 2)
+                                node1, node2 = np.random.choice(VectorList, size = 2)
                                 operation = [key, op, [node1, node2]]
                             if op == 31 and len(VectorList)>=1: #matrix + vector -> vector
-                                node1 = cp.random.choice(MatrixList, size = 1)
-                                node2 = cp.random.choice(VectorList, size = 1)
+                                node1 = np.random.choice(MatrixList, size = 1)
+                                node2 = np.random.choice(VectorList, size = 1)
                                 operation = [key, op, [node1, node2]]
                             if op in [35,36,52,53]: #matrix -> vector
-                                node = cp.random.choice(MatrixList, size = 1)
+                                node = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node]]
                                 
                             valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
@@ -433,84 +435,84 @@ class Alpha():
                         count = 0
                         operation = [None, None, None]
                         while not valid and count<100: #loops until selecting a valid operation
-                            op = toMatrixOp[cp.random.randint(len(toMatrixOp))]
+                            op = toMatrixOp[np.random.randint(len(toMatrixOp))]
                             if op in [17, 30, 37, 38]: #matrix -> matrix
-                                node = cp.random.choice(MatrixList, size = 1)
+                                node = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node]]
                             if op == 28 and len(VectorList)>=2: #vector + vector -> matrix
-                                node1, node2 = cp.random.choice(VectorList, size = 2, replace = False)
+                                node1, node2 = np.random.choice(VectorList, size = 2, replace = False)
                                 operation = [key, op, [node1, node2]]
                             if op == 29: #scalar + matrix -> matrix
-                                node1 = cp.random.choice(ScalarList, size = 1)
-                                node2 = cp.random.choice(MatrixList, size = 1)
+                                node1 = np.random.choice(ScalarList, size = 1)
+                                node2 = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node1, node2]]
                             if op in [32, 33] and len(VectorList)>=1: #vector + int -> matrix
-                                node = cp.random.choice(VectorList, size = 1)
-                                i = cp.random.randint(2, self.maxLenShapeNode)
+                                node = np.random.choice(VectorList, size = 1)
+                                i = np.random.randint(2,self.maxLenShapeNode)
                                 operation = [key, op, [node, i]]
                             if op in [39, 40, 41, 42, 43, 46, 49] and len(MatrixList)>=2: #matrix + matrix -> matrix
-                                node1, node2 = cp.random.choice(MatrixList, size = 2, replace = False)
+                                node1, node2 = np.random.choice(MatrixList, size = 2, replace = False)
                                 operation = [key, op, [node1, node2]]
                             
                             valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
                             count += 1
                         if not valid: break
                     
-                    index = cp.random.randint(len(self.graph.predictOPs) + 1)
+                    index = np.random.randint(len(self.graph.predictOPs)+1)
                     self.graph.addPredictOPs(index, operation[0], operation[1], operation[2])
                     
                     ###############################################################
                     #Add Operations have 'key' as Input and Scalar as output
-                    out = cp.random.choice(ScalarList)
+                    out = np.random.choice(ScalarList)
                     valid = False
                     count = 0
                     operation = [None, None, None]
                     while not valid and count<100: #loops until selecting a valid operation
                         if 's' in key:
-                            op = cp.random.choice([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 65, 66, 67]) #scalar -> scalar
+                            op = np.random.choice([5,6,7,8,9,10,11,12,13,14,15,65,66,67]) #scalar -> scalar
                         if 'v' in key:
-                            op = cp.random.choice([21, 50, 54]) # vector -> scalar
+                            op = np.random.choice([21,50,54]) # vector -> scalar
                         if 'm' in key:
-                            op = cp.random.choice([34, 51, 55]) # matrix -> scalar
+                            op = np.random.choice([34,51,55]) # matrix -> scalar
                         operation = [out, op, [key]]
                         valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
                         count += 1
                     if not valid: 
                         continue
                     else:
-                        index = cp.random.randint(len(self.graph.predictOPs) + 1)
+                        index = np.random.randint(len(self.graph.predictOPs)+1)
                         self.graph.addPredictOPs(index, operation[0], operation[1], operation[2])
                     
                     
-            elif cp.random.binomial(1, 1 - prob) or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating predict by removing Operands
-                if cp.random.binomial(1, prob): #remove 1 operation only
+            elif np.random.binomial(1, 1-prob) or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating predict by removing Operands
+                if np.random.binomial(1, prob): #remove 1 operation only
                     if len(self.graph.predictOPs) >= 1:
                         key = 's1'
                         while key in {'s1', 'm0'}: #force sellecting operation output different from s1, m0
-                            op_index = cp.random.randint(len(self.graph.predictOPs))
+                            op_index = np.random.randint(len(self.graph.predictOPs))
                             key = self.graph.predictOPs[op_index][0]
                         self.graph.removePredictOPs(op_index)
                 else: #remove 1 node and its operations
                     key = 's1'
                     while key in {'s1', 'm0'}: #force sellecting operation output different from s1, m0
-                        key = cp.random.choice(list(self.graph.nodes.keys()))
+                        key = np.random.choice(list(self.graph.nodes.keys()))
                     self.graph.removeNodes(key)
                     for op in self.graph.predictOPs:
                         if key == op[0] or key in op[2]:
                             self.graph.predictOPs.remove(op)
                 
             else: # mutating predict by change operation
-                if cp.random.binomial(1, min(0.99, len(self.graph.predictOPs) / len(self.graph.nodes))): #the more predict operation, the more likely to change operation only
-                    op_index = cp.random.randint(len(self.graph.predictOPs))
+                if np.random.binomial(1, min(0.99,len(self.graph.predictOPs)/len(self.graph.nodes))): #the more predict operation, the more likely to change operation only
+                    op_index = np.random.randint(len(self.graph.predictOPs))
                     operation = self.graph.predictOPs[op_index]
                     key, op = operation[0], operation[1]
                     mode = 'change operation'
                 else: #the less predict operation, the less likely to change operation, the more likely to add operation
-                    op_index = cp.random.randint(len(self.graph.predictOPs) + 1)
-                    key = cp.random.choice(list(self.graph.nodes.keys()))
-                    if 's' in key: op = toScalarOp[cp.random.randint(len(toScalarOp))]
-                    if 'v' in key: op = toVectorOp[cp.random.randint(len(toVectorOp))]
-                    if 'm' in key: op = toMatrixOp[cp.random.randint(len(toMatrixOp))]
+                    op_index = np.random.randint(len(self.graph.predictOPs)+1)
+                    key = np.random.choice(list(self.graph.nodes.keys()))
+                    if 's' in key: op = toScalarOp[np.random.randint(len(toScalarOp))]
+                    if 'v' in key: op = toVectorOp[np.random.randint(len(toVectorOp))]
+                    if 'm' in key: op = toMatrixOp[np.random.randint(len(toMatrixOp))]
                     mode = 'add operation'
                 
                 ScalarList = [node for node in self.graph.nodes.keys() if 's' in node and node not in {key, 's0'}]
@@ -522,21 +524,21 @@ class Alpha():
                     count = 0
                     operation = [None, None, None]
                     while not valid and count<100: #loops until selecting a valid operation
-                        op = toScalarOp[cp.random.randint(len(toScalarOp))]
+                        op = toScalarOp[np.random.randint(len(toScalarOp))]
                         if op in [1,2,3,4,44,47]: #scalar + scalar -> scalar
-                            node1, node2 = cp.random.choice(ScalarList, size = 2)
+                            node1, node2 = np.random.choice(ScalarList, size = 2)
                             operation = [key, op, [node1, node2]]
                         if op in [5,6,7,8,9,10,11,12,13,14,15,65,66,67]: #scalar -> scalar
-                            node = cp.random.choice(ScalarList, size = 1)
+                            node = np.random.choice(ScalarList, size = 1)
                             operation = [key, op, [node]]
                         if op in [21,50,54] and len(VectorList) >= 1: # vector -> scalar
-                            node = cp.random.choice(VectorList, size = 1)
+                            node = np.random.choice(VectorList, size = 1)
                             operation = [key, op, [node]]
                         if op == 27 and len(VectorList) >= 2: #vector + vector -> scalar
-                            node1, node2 = cp.random.choice(VectorList, size = 2)
+                            node1, node2 = np.random.choice(VectorList, size = 2)
                             operation = [key, op, [node1, node2]]
                         if op in [34,51,55]: #matrix -> scalar
-                            node = cp.random.choice(MatrixList, size = 1)
+                            node = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node]]
                             
                         valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
@@ -547,27 +549,27 @@ class Alpha():
                     count = 0
                     operation = [None, None, None]
                     while not valid and count<100: #loops until selecting a valid operation
-                        op = toVectorOp[cp.random.randint(len(toVectorOp))]
+                        op = toVectorOp[np.random.randint(len(toVectorOp))]
                         if op in [16,20,22] and len(VectorList)>=1: #vector -> vector
-                            node = cp.random.choice(VectorList, size = 1)
+                            node = np.random.choice(VectorList, size = 1)
                             operation = [key, op, [node]]
                         if op == 18 and len(VectorList)>=1: #scalar + vector -> vector
-                            node1 = cp.random.choice(ScalarList, size = 1)
-                            node2 = cp.random.choice(VectorList, size = 1)
+                            node1 = np.random.choice(ScalarList, size = 1)
+                            node2 = np.random.choice(VectorList, size = 1)
                             operation = [key, op, [node1, node2]]
                         if op == 19: #scalar + int -> vector
-                            node = cp.random.choice(ScalarList, size = 1)
-                            i = cp.random.randint(2, self.maxLenShapeNode)
+                            node = np.random.choice(ScalarList, size = 1)
+                            i = np.random.randint(2,self.maxLenShapeNode)
                             operation = [key, op, [node, i]]
                         if op in [23,24,25,26,45,48] and len(VectorList)>=2: # vector + vector -> vector
-                            node1, node2 = cp.random.choice(VectorList, size = 2)
+                            node1, node2 = np.random.choice(VectorList, size = 2)
                             operation = [key, op, [node1, node2]]
                         if op == 31 and len(VectorList)>=1: #matrix + vector -> vector
-                            node1 = cp.random.choice(MatrixList, size = 1)
-                            node2 = cp.random.choice(VectorList, size = 1)
+                            node1 = np.random.choice(MatrixList, size = 1)
+                            node2 = np.random.choice(VectorList, size = 1)
                             operation = [key, op, [node1, node2]]
                         if op in [35,36,52,53]: #matrix -> vector
-                            node = cp.random.choice(MatrixList, size = 1)
+                            node = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node]]
                             
                         valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
@@ -578,23 +580,23 @@ class Alpha():
                     count = 0
                     operation = [None, None, None]
                     while not valid and count<1000: #loops until selecting a valid operation
-                        op = toMatrixOp[cp.random.randint(len(toMatrixOp))]
+                        op = toMatrixOp[np.random.randint(len(toMatrixOp))]
                         if op in [17, 30, 37, 38]: #matrix -> matrix
-                            node = cp.random.choice(MatrixList, size = 1)
+                            node = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node]]
                         if op == 28 and len(VectorList)>=2: #vector + vector -> matrix
-                            node1, node2 = cp.random.choice(VectorList, size = 2, replace = False)
+                            node1, node2 = np.random.choice(VectorList, size = 2, replace = False)
                             operation = [key, op, [node1, node2]]
                         if op == 29: #scalar + matrix -> matrix
-                            node1 = cp.random.choice(ScalarList, size = 1)
-                            node2 = cp.random.choice(MatrixList, size = 1)
+                            node1 = np.random.choice(ScalarList, size = 1)
+                            node2 = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node1, node2]]
                         if op in [32, 33] and len(VectorList)>=1: #vector + int -> matrix
-                            node = cp.random.choice(VectorList, size = 1)
-                            i = cp.random.randint(2, self.maxLenShapeNode)
+                            node = np.random.choice(VectorList, size = 1)
+                            i = np.random.randint(2,self.maxLenShapeNode)
                             operation = [key, op, [node, i]]
                         if op in [39, 40, 41, 42, 43, 46, 49] and len(MatrixList)>=2: #matrix + matrix -> matrix
-                            node1, node2 = cp.random.choice(MatrixList, size = 2, replace = False)
+                            node1, node2 = np.random.choice(MatrixList, size = 2, replace = False)
                             operation = [key, op, [node1, node2]]
                             
                         valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
@@ -688,7 +690,7 @@ class Alpha():
         None.
 
         '''
-        if cp.random.binomial(1, self.mutateProb): #90% mutate update
+        if np.random.binomial(1, self.mutateProb): #90% mutate update
             prob = self._updateAddOperandProb()
             toScalarOp = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,21,27,34,44,47,50,51,54,55,65,66,67]
             toVectorOp = [16,18,19,20,22,23,24,25,26,31,35,36,45,48,52,53]
@@ -696,8 +698,8 @@ class Alpha():
             
             #prob% mutating update by adding Operands
             #add operands
-            if (cp.random.binomial(1, prob) or len(self.graph.updateOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes:
-                newNodes = cp.random.choice([Scalar(), Vector(), Matrix()], size = cp.random.randint(1, 4), replace = False)
+            if (np.random.binomial(1, prob) or len(self.graph.updateOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes:
+                newNodes = np.random.choice([Scalar(), Vector(), Matrix()], size = np.random.randint(1,4), replace = False)
                 for new in newNodes:
                     key = self.graph.addNodes(new)
                     ScalarList = [node for node in self.graph.nodes.keys() if 's' in node and node != key]
@@ -710,21 +712,21 @@ class Alpha():
                         count = 0
                         operation = [None, None, None]
                         while not valid and count<1000: #loops until selecting a valid operation
-                            op = toScalarOp[cp.random.randint(len(toScalarOp))]
+                            op = toScalarOp[np.random.randint(len(toScalarOp))]
                             if op in [1,2,3,4,44,47]: #scalar + scalar -> scalar
-                                node1, node2 = cp.random.choice(ScalarList, size = 2)
+                                node1, node2 = np.random.choice(ScalarList, size = 2)
                                 operation = [key, op, [node1, node2]]
                             if op in [5,6,7,8,9,10,11,12,13,14,15,65,66,67]: #scalar -> scalar
-                                node = cp.random.choice(ScalarList, size = 1)
+                                node = np.random.choice(ScalarList, size = 1)
                                 operation = [key, op, [node]]
                             if op in [21,50,54] and len(VectorList) >= 1: # vector -> scalar
-                                node = cp.random.choice(VectorList, size = 1)
+                                node = np.random.choice(VectorList, size = 1)
                                 operation = [key, op, [node]]
                             if op == 27 and len(VectorList) >= 2: #vector + vector -> scalar
-                                node1, node2 = cp.random.choice(VectorList, size = 2)
+                                node1, node2 = np.random.choice(VectorList, size = 2)
                                 operation = [key, op, [node1, node2]]
                             if op in [34,51,55]: #matrix -> scalar
-                                node = cp.random.choice(MatrixList, size = 1)
+                                node = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node]]
                                 
                             valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
@@ -736,27 +738,27 @@ class Alpha():
                         count = 0
                         operation = [None, None, None]
                         while not valid and count<100: #loops until selecting a valid operation
-                            op = toVectorOp[cp.random.randint(len(toVectorOp))]
+                            op = toVectorOp[np.random.randint(len(toVectorOp))]
                             if op in [16,20,22] and len(VectorList)>=1: #vector -> vector
-                                node = cp.random.choice(VectorList, size = 1)
+                                node = np.random.choice(VectorList, size = 1)
                                 operation = [key, op, [node]]
                             if op == 18 and len(VectorList)>=1: #scalar + vector -> vector
-                                node1 = cp.random.choice(ScalarList, size = 1)
-                                node2 = cp.random.choice(VectorList, size = 1)
+                                node1 = np.random.choice(ScalarList, size = 1)
+                                node2 = np.random.choice(VectorList, size = 1)
                                 operation = [key, op, [node1, node2]]
                             if op == 19: #scalar + int -> vector
-                                node = cp.random.choice(ScalarList, size = 1)
-                                i = cp.random.randint(2, self.maxLenShapeNode)
+                                node = np.random.choice(ScalarList, size = 1)
+                                i = np.random.randint(2,self.maxLenShapeNode)
                                 operation = [key, op, [node, i]]
                             if op in [23,24,25,26,45,48] and len(VectorList)>=2: # vector + vector -> vector
-                                node1, node2 = cp.random.choice(VectorList, size = 2)
+                                node1, node2 = np.random.choice(VectorList, size = 2)
                                 operation = [key, op, [node1, node2]]
                             if op == 31 and len(VectorList)>=1: #matrix + vector -> vector
-                                node1 = cp.random.choice(MatrixList, size = 1)
-                                node2 = cp.random.choice(VectorList, size = 1)
+                                node1 = np.random.choice(MatrixList, size = 1)
+                                node2 = np.random.choice(VectorList, size = 1)
                                 operation = [key, op, [node1, node2]]
                             if op in [35,36,52,53]: #matrix -> vector
-                                node = cp.random.choice(MatrixList, size = 1)
+                                node = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node]]
                                 
                             valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
@@ -768,84 +770,84 @@ class Alpha():
                         count = 0
                         operation = [None, None, None]
                         while not valid and count<100: #loops until selecting a valid operation
-                            op = toMatrixOp[cp.random.randint(len(toMatrixOp))]
+                            op = toMatrixOp[np.random.randint(len(toMatrixOp))]
                             if op in [17, 30, 37, 38]: #matrix -> matrix
-                                node = cp.random.choice(MatrixList, size = 1)
+                                node = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node]]
                             if op == 28 and len(VectorList)>=2: #vector + vector -> matrix
-                                node1, node2 = cp.random.choice(VectorList, size = 2, replace = False)
+                                node1, node2 = np.random.choice(VectorList, size = 2, replace = False)
                                 operation = [key, op, [node1, node2]]
                             if op == 29: #scalar + matrix -> matrix
-                                node1 = cp.random.choice(ScalarList, size = 1)
-                                node2 = cp.random.choice(MatrixList, size = 1)
+                                node1 = np.random.choice(ScalarList, size = 1)
+                                node2 = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node1, node2]]
                             if op in [32, 33] and len(VectorList)>=1: #vector + int -> matrix
-                                node = cp.random.choice(VectorList, size = 1)
-                                i = cp.random.randint(2, self.maxLenShapeNode)
+                                node = np.random.choice(VectorList, size = 1)
+                                i = np.random.randint(2,self.maxLenShapeNode)
                                 operation = [key, op, [node, i]]
                             if op in [39, 40, 41, 42, 43, 46, 49] and len(MatrixList)>=2: #matrix + matrix -> matrix
-                                node1, node2 = cp.random.choice(MatrixList, size = 2, replace = False)
+                                node1, node2 = np.random.choice(MatrixList, size = 2, replace = False)
                                 operation = [key, op, [node1, node2]]
                                 
                             valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
                             count += 1
                         if not valid: break
                     
-                    index = cp.random.randint(len(self.graph.updateOPs) + 1)
+                    index = np.random.randint(len(self.graph.updateOPs)+1)
                     self.graph.addUpdateOPs(index, operation[0], operation[1], operation[2])
                     
                     ###############################################################
                     #Add Operations have 'key' as Input and Scalar as output
-                    out = cp.random.choice(ScalarList)
+                    out = np.random.choice(ScalarList)
                     valid = False
                     count = 0
                     operation = [None, None, None]
                     while not valid and count<100: #loops until selecting a valid operation
                         if 's' in key:
-                            op = cp.random.choice([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 65, 66, 67]) #scalar -> scalar
+                            op = np.random.choice([5,6,7,8,9,10,11,12,13,14,15,65,66,67]) #scalar -> scalar
                         if 'v' in key:
-                            op = cp.random.choice([21, 50, 54]) # vector -> scalar
+                            op = np.random.choice([21,50,54]) # vector -> scalar
                         if 'm' in key:
-                            op = cp.random.choice([34, 51, 55]) # matrix -> scalar
+                            op = np.random.choice([34,51,55]) # matrix -> scalar
                         operation = [out, op, [key]]
                         valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
                         count += 1
                     if not valid:
                         continue
                     else:
-                        index = cp.random.randint(len(self.graph.updateOPs) + 1)
+                        index = np.random.randint(len(self.graph.updateOPs)+1)
                         self.graph.addUpdateOPs(index, operation[0], operation[1], operation[2])
                     
                     
-            elif cp.random.binomial(1, 1 - prob) or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating update by removing Operands
-                if cp.random.binomial(1, prob): #remove 1 operation
+            elif np.random.binomial(1, 1-prob) or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating update by removing Operands
+                if np.random.binomial(1, prob): #remove 1 operation
                     if len(self.graph.updateOPs) >= 1:
                         key = 's1'
                         while key in {'s1', 'm0'}: #force sellecting operation output different from s1, m0
-                            op_index = cp.random.randint(len(self.graph.updateOPs))
+                            op_index = np.random.randint(len(self.graph.updateOPs))
                             key = self.graph.updateOPs[op_index][0]
                         self.graph.removeUpdateOPs(op_index)
                 else: #remove 1 node and its opereration
                     key = 's1'
                     while key in {'s1', 'm0'}: #force sellecting operation output different from s1, m0
-                        key = cp.random.choice(list(self.graph.nodes.keys()))
+                        key = np.random.choice(list(self.graph.nodes.keys()))
                     self.graph.removeNodes(key)
                     for op in self.graph.updateOPs:
                         if key == op[0] or key in op[2]:
                             self.graph.updateOPs.remove(op)
                 
             else: # mutating update by change operation
-                if cp.random.binomial(1, min(0.99, len(self.graph.updateOPs) / len(self.graph.nodes))): #the more update operations, the more likely to change operation only
-                    op_index = cp.random.randint(len(self.graph.updateOPs))
+                if np.random.binomial(1, min(0.99,len(self.graph.updateOPs)/len(self.graph.nodes))): #the more update operations, the more likely to change operation only
+                    op_index = np.random.randint(len(self.graph.updateOPs))
                     operation = self.graph.updateOPs[op_index]
                     key, op = operation[0], operation[1]
                     mode = 'change operation'
                 else: #the less update operations, the less likely to change operation, the more likely to add operation
-                    op_index = cp.random.randint(len(self.graph.updateOPs) + 1)
-                    key = cp.random.choice(list(self.graph.nodes.keys()))
-                    if 's' in key: op = toScalarOp[cp.random.randint(len(toScalarOp))]
-                    if 'v' in key: op = toVectorOp[cp.random.randint(len(toVectorOp))]
-                    if 'm' in key: op = toMatrixOp[cp.random.randint(len(toMatrixOp))]
+                    op_index = np.random.randint(len(self.graph.updateOPs)+1)
+                    key = np.random.choice(list(self.graph.nodes.keys()))
+                    if 's' in key: op = toScalarOp[np.random.randint(len(toScalarOp))]
+                    if 'v' in key: op = toVectorOp[np.random.randint(len(toVectorOp))]
+                    if 'm' in key: op = toMatrixOp[np.random.randint(len(toMatrixOp))]
                     mode = 'add operation'
                 
                 ScalarList = [node for node in self.graph.nodes.keys() if 's' in node and node != key]
@@ -857,21 +859,21 @@ class Alpha():
                     count = 0
                     operation = [None, None, None]
                     while not valid and count<100: #loops until selecting a valid operation
-                        op = toScalarOp[cp.random.randint(len(toScalarOp))]
+                        op = toScalarOp[np.random.randint(len(toScalarOp))]
                         if op in [1,2,3,4,44,47]: #scalar + scalar -> scalar
-                            node1, node2 = cp.random.choice(ScalarList, size = 2)
+                            node1, node2 = np.random.choice(ScalarList, size = 2)
                             operation = [key, op, [node1, node2]]
                         if op in [5,6,7,8,9,10,11,12,13,14,15,65,66,67]: #scalar -> scalar
-                            node = cp.random.choice(ScalarList, size = 1)
+                            node = np.random.choice(ScalarList, size = 1)
                             operation = [key, op, [node]]
                         if op in [21,50,54] and len(VectorList) >= 1: # vector -> scalar
-                            node = cp.random.choice(VectorList, size = 1)
+                            node = np.random.choice(VectorList, size = 1)
                             operation = [key, op, [node]]
                         if op == 27 and len(VectorList) >= 2: #vector + vector -> scalar
-                            node1, node2 = cp.random.choice(VectorList, size = 2)
+                            node1, node2 = np.random.choice(VectorList, size = 2)
                             operation = [key, op, [node1, node2]]
                         if op in [34,51,55]: #matrix -> scalar
-                            node = cp.random.choice(MatrixList, size = 1)
+                            node = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node]]
                             
                         valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
@@ -882,27 +884,27 @@ class Alpha():
                     count = 0
                     operation = [None, None, None]
                     while not valid and count<100: #loops until selecting a valid operation
-                        op = toVectorOp[cp.random.randint(len(toVectorOp))]
+                        op = toVectorOp[np.random.randint(len(toVectorOp))]
                         if op in [16,20,22] and len(VectorList)>=1: #vector -> vector
-                            node = cp.random.choice(VectorList, size = 1)
+                            node = np.random.choice(VectorList, size = 1)
                             operation = [key, op, [node]]
                         if op == 18 and len(VectorList)>=1: #scalar + vector -> vector
-                            node1 = cp.random.choice(ScalarList, size = 1)
-                            node2 = cp.random.choice(VectorList, size = 1)
+                            node1 = np.random.choice(ScalarList, size = 1)
+                            node2 = np.random.choice(VectorList, size = 1)
                             operation = [key, op, [node1, node2]]
                         if op == 19: #scalar + int -> vector
-                            node = cp.random.choice(ScalarList, size = 1)
-                            i = cp.random.randint(2, self.maxLenShapeNode)
+                            node = np.random.choice(ScalarList, size = 1)
+                            i = np.random.randint(2,self.maxLenShapeNode)
                             operation = [key, op, [node, i]]
                         if op in [23,24,25,26,45,48] and len(VectorList)>=2: # vector + vector -> vector
-                            node1, node2 = cp.random.choice(VectorList, size = 2)
+                            node1, node2 = np.random.choice(VectorList, size = 2)
                             operation = [key, op, [node1, node2]]
                         if op == 31 and len(VectorList)>=1: #matrix + vector -> vector
-                            node1 = cp.random.choice(MatrixList, size = 1)
-                            node2 = cp.random.choice(VectorList, size = 1)
+                            node1 = np.random.choice(MatrixList, size = 1)
+                            node2 = np.random.choice(VectorList, size = 1)
                             operation = [key, op, [node1, node2]]
                         if op in [35,36,52,53]: #matrix -> vector
-                            node = cp.random.choice(MatrixList, size = 1)
+                            node = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node]]
                             
                         valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
@@ -913,23 +915,23 @@ class Alpha():
                     count = 0
                     operation = [None, None, None]
                     while not valid and count<1000: #loops until selecting a valid operation
-                        op = toMatrixOp[cp.random.randint(len(toMatrixOp))]
+                        op = toMatrixOp[np.random.randint(len(toMatrixOp))]
                         if op in [17, 30, 37, 38]: #matrix -> matrix
-                            node = cp.random.choice(MatrixList, size = 1)
+                            node = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node]]
                         if op == 28 and len(VectorList)>=2: #vector + vector -> matrix
-                            node1, node2 = cp.random.choice(VectorList, size = 2, replace = False)
+                            node1, node2 = np.random.choice(VectorList, size = 2, replace = False)
                             operation = [key, op, [node1, node2]]
                         if op == 29: #scalar + matrix -> matrix
-                            node1 = cp.random.choice(ScalarList, size = 1)
-                            node2 = cp.random.choice(MatrixList, size = 1)
+                            node1 = np.random.choice(ScalarList, size = 1)
+                            node2 = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node1, node2]]
                         if op in [32, 33] and len(VectorList)>=1: #vector + int -> matrix
-                            node = cp.random.choice(VectorList, size = 1)
-                            i = cp.random.randint(2, self.maxLenShapeNode)
+                            node = np.random.choice(VectorList, size = 1)
+                            i = np.random.randint(2,self.maxLenShapeNode)
                             operation = [key, op, [node, i]]
                         if op in [39, 40, 41, 42, 43, 46, 49] and len(MatrixList)>=2: #matrix + matrix -> matrix
-                            node1, node2 = cp.random.choice(MatrixList, size = 2, replace = False)
+                            node1, node2 = np.random.choice(MatrixList, size = 2, replace = False)
                             operation = [key, op, [node1, node2]]
                             
                         valid = self.graph._checkValidOP(operation[0], operation[1], operation[2])
@@ -981,12 +983,12 @@ class Alpha():
         for node in undefinedNodes:
             if 's' in node:
                 if self.graph.nodes[node].value is None:
-                    if cp.random.randint(2): #normal(0,1)
+                    if np.random.randint(2): #normal(0,1)
                         op = [node, 62, [0, 1]]
                     else: #uniform [-1,1]
                         op = [node, 59, [-1, 1]]
                 else:
-                    choice = cp.random.randint(3)
+                    choice = np.random.randint(3)
                     if choice == 2: #constant
                         op = [node, 56, [float(self.graph.nodes[node].value)]]
                     elif choice == 1: #normal(0,1)
@@ -997,17 +999,17 @@ class Alpha():
             if 'v' in node:
                 if self.graph.nodes[node].value is None:
                     if self.graph.nodes[node].shape is None:
-                        length = cp.random.randint(2, self.maxLenShapeNode)
+                        length = np.random.randint(2, self.maxLenShapeNode)
                     else:
                         length = self.graph.nodes[node].shape
-                    if cp.random.randint(2): #norm(0,1)
+                    if np.random.randint(2): #norm(0,1)
                         op = [node, 63, [0, 1, length]]
                     else: #uniform[-1,1]
                         op = [node, 60, [-1, 1, length]]
                 else:
-                    val = float(self.graph.nodes[node].value[cp.random.randint(self.graph.nodes[node].shape)])
+                    val = float(self.graph.nodes[node].value[np.random.randint(self.graph.nodes[node].shape)])
                     length = self.graph.nodes[node].shape
-                    choice = cp.random.randint(3)
+                    choice = np.random.randint(3)
                     if choice == 2: #constant
                         op = [node, 57, [val, self.graph.nodes[node].shape]]
                     elif choice == 1: # normal (0,1)
@@ -1018,20 +1020,20 @@ class Alpha():
             if 'm' in node:
                 if self.graph.nodes[node].value is None:
                     if self.graph.nodes[node].shape is None:
-                        i = cp.random.randint(2, self.maxLenShapeNode)
-                        j = cp.random.randint(2, self.maxLenShapeNode)
+                        i = np.random.randint(2, self.maxLenShapeNode)
+                        j = np.random.randint(2, self.maxLenShapeNode)
                     else:
                         i, j = self.graph.nodes[node].shape
-                    if cp.random.randint(2): #norm(0,1)
+                    if np.random.randint(2): #norm(0,1)
                         op = [node, 64, [0, 1, i, j]]
                     else: #uniform[-1,1]
                         op = [node, 61, [-1, 1, i, j]]
                 else:
-                    i = cp.random.randint(self.graph.nodes[node].shape[0])
-                    j = cp.random.randint(self.graph.nodes[node].shape[1])
+                    i = np.random.randint(self.graph.nodes[node].shape[0])
+                    j = np.random.randint(self.graph.nodes[node].shape[1])
                     val = float(self.graph.nodes[node].value[i, j])
                     i, j = self.graph.nodes[node].shape
-                    choice = cp.random.randint(3)
+                    choice = np.random.randint(3)
                     if choice == 2: #constant
                         op = [node, 58, [val, i, j]]
                     elif choice == 1: # normal (0,1)
@@ -1039,7 +1041,7 @@ class Alpha():
                     elif choice == 0: #uniform [-1, 1]
                         op = [node, 61, [-1, 1, i, j]]
             
-            index = cp.random.randint(len(self.graph.setupOPs) + 1)
+            index = np.random.randint(len(self.graph.setupOPs)+1)
             self.graph.addSetupOPs(index, op[0], op[1], op[2])
     
     
@@ -1062,18 +1064,18 @@ class Alpha():
             self.mutate_predict()
             cnt += 1
             if cnt >= 100000:
-                self.graph.addPredictOPs(len(self.graph.predictOPs), 's1', cp.random.choice([34, 51, 55]), ['m0'])
+                self.graph.addPredictOPs(len(self.graph.predictOPs), 's1', np.random.choice([34, 51, 55]), ['m0'])
                 #self.graph.show()
         self.mutate_update()
         self.fillUndefinedOperands()
-        print('mutate done')
+        #print('mutate done')
     
 if __name__ == '__main__':
     a = Graph()
     
     a.addNodes(Scalar())
     
-    a.addNodes(Vector(cp.array([1, 2, 3, 4, 5])))
+    a.addNodes(Vector(np.array([1,2,3,4,5])))
     
     a.addNodes(Vector())
     
@@ -1085,7 +1087,7 @@ if __name__ == '__main__':
     
     a.addSetupOPs(2, 'm1', 64, [0,1,5,3])
 
-    a.addM0(cp.array([[1, 2, 3], [2, 3, 4], [3, 4, 5]]))
+    a.addM0(np.array([[1,2,3], [2,3,4], [3,4,5]]))
     
     a.addPredictOPs(0, 'v2', 35, ['m0'])
     
