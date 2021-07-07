@@ -1,4 +1,4 @@
-from multiprocessing import Pool
+import multiprocessing
 
 import cupy as cp
 import numpy as np
@@ -294,6 +294,117 @@ class AlphaEvolve():
         self.currAlpha = Alpha(graph, maxNumNodes=self.maxNumNodes, mutateProb=0.9, rf=0.0001,
                                maxLenShapeNode=self.maxLenShapeNode)
 
+    def parallelNewMutate(self, alpha: Alpha):
+        self.currAlpha = alpha
+        # prunning and get fingerprint
+        self.prunning()
+        fingerPrint = self.fingerprint()
+        fitnessScore, dailyReturns, annualizedReturns, sharpe = self.summaryAlpha()
+        return alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues
+    
+    def combineAlphas(self, alpha_1, alpha_2):
+        graph_1 = copy.deepcopy(alpha_1.graph)
+        graph_2 = copy.deepcopy(alpha_2.graph)
+        
+        nodes = {}
+        for key, value in graph_1.nodes.items():
+            if key not in {'m0', 's1'}:
+                nodes[key+'1'] = copy.deepcopy(value)
+            elif key == 'm0':
+                nodes[key] = copy.deepcopy(value)
+            elif key == 's1':
+                nodes[key+'1'] = copy.deepcopy(value)
+                nodes[key] = copy.deepcopy(value)
+        for key, value in graph_2.nodes.items():
+            if key != 'm0':
+                nodes[key+'2'] = copy.deepcopy(value)
+        nodes['s3'] = Scalar()
+        nodes['s4'] = Scalar(2)
+        
+        setupOPs_1 = graph_1.setupOPs.copy()
+        setupOPs_2 = graph_2.setupOPs.copy()
+        predictOPs_1 = graph_1.predictOPs.copy()
+        predictOPs_2 = graph_2.predictOPs.copy()
+        updateOPs_1 = graph_1.updateOPs.copy()
+        updateOPs_2 = graph_2.updateOPs.copy()
+        
+        newSetup = []
+        newPredict = []
+        newUpdate = []
+        for operation in setupOPs_1:
+            out, op, inps = operation
+            if isinstance(out, str) and out != 'm0': out += '1'
+            for i, inp in enumerate(inps):
+                if isinstance(inp, str) and inp != 'm0': inps[i] += '1'
+            newSetup.append([out, op, inps])
+        
+        for operation in setupOPs_2:
+            out, op, inps = operation
+            if isinstance(out, str) and out != 'm0': out += '2'
+            for i, inp in enumerate(inps):
+                if isinstance(inp, str) and inp != 'm0': inps[i] += '2'
+            newSetup.append([out, op, inps])
+        
+        for operation in predictOPs_1:
+            out, op, inps = operation
+            if isinstance(out, str) and out != 'm0': out += '1'
+            for i, inp in enumerate(inps):
+                if isinstance(inp, str) and inp != 'm0': inps[i] += '1'
+            newPredict.append([out, op, inps])
+        
+        for operation in predictOPs_2:
+            out, op, inps = operation
+            if isinstance(out, str) and out != 'm0': out += '2'
+            for i, inp in enumerate(inps):
+                if isinstance(inp, str) and inp != 'm0': inps[i] += '2'
+            newPredict.append([out, op, inps])
+        
+        for operation in updateOPs_1:
+            out, op, inps = operation
+            if isinstance(out, str) and out != 'm0': out += '1'
+            for i, inp in enumerate(inps):
+                if isinstance(inp, str) and inp != 'm0': inps[i] += '1'
+            newUpdate.append([out, op, inps])
+        
+        for operation in updateOPs_2:
+            out, op, inps = operation
+            if isinstance(out, str) and out != 'm0': out += '2'
+            for i, inp in enumerate(inps):
+                if isinstance(inp, str) and inp != 'm0': inps[i] += '2'
+            newUpdate.append([out, op, inps])
+        
+        newPredict.append(['s3', 1, ['s11', 's12']])
+        newSetup.append(['s4', 56, [2]])
+        newPredict.append(['s1', 4, ['s3', 's4']])
+        
+        maxNumNodes = graph_1.maxNumNodes + graph_2.maxNumNodes
+        
+        newGraph = Graph(nodes = nodes, setupOPs = newSetup, predictOPs = newPredict, updateOPs = newUpdate, maxNumNodes = maxNumNodes)
+        newAlpha = Alpha(newGraph)
+        return newAlpha
+        
+    def createNewMutate(self):
+        self.pickTournament()
+        bestFit_1, alpha_1 = self.getBestFit(self.tournament)
+        bestFit_2, alpha_2 = self.getBestFit([alpha for alpha in self.tournament if alpha != alpha_1])
+        newMutate = []
+        for i in range(self.numNewAlphaPerMutation):
+            while True:
+                try:
+                    if bestFit_2 < 0 or np.random.binomial(1, bestFit_1/(bestFit_1 + bestFit_2)):
+                        newAlpha = copy.deepcopy(alpha_1)
+                    else:
+                        newAlpha = self.combineAlphas(alpha_1, alpha_2)
+                    
+                    newAlpha.mutate()
+                    newMutate.append(newAlpha)
+                    break
+                except:
+                    continue
+            
+                
+        return newMutate
+        
     def run(self):
         '''
         Evolving Method
@@ -303,69 +414,71 @@ class AlphaEvolve():
         None.
 
         '''
-        # import data
+        #import data
         self.importData()
         self.preparedData()
         self.trainLength = round(self.dataLength * self.trainRatio)
         self.validLength = round(self.dataLength * self.validRatio)
-
-        # initiate 1st population
+        
+        #initiate 1st population
         self.initiatePopulation()
         self.runFirstPopulation()
-
+        self.summaryBestFit()
         while self.checkTimeBudget():
-            self.pickTournament()
-            bestFit = self.getBestFit()
-            print('BEST FITNESS:', bestFit)
-
-            newMutate = []
-            for i in range(self.numNewAlphaPerMutation):
-                while True:
-                    try:
-                        newAlpha = copy.deepcopy(self.currAlpha)
-                        newAlpha.mutate()
-                        newMutate.append(newAlpha)
-                        break
-                    except:
-                        continue
-
+            newMutate = self.createNewMutate()
+            
             validAlpha = []
-            for alpha in newMutate:
-                self.currAlpha = alpha
-                # prunning and get fingerprint
-                self.prunning()
-                fingerPrint = self.fingerprint()
+
+            ctx = multiprocessing.get_context('spawn')
+            pool = ctx.Pool()
+            count = 0
+            for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues in pool.imap(self.parallelNewMutate, newMutate):
                 if fingerPrint in self.fitnessScore:
-                    continue
-                else:
-                    fitnessScore, dailyReturns, annualizedReturns, sharpe = self.summaryAlpha()
+                    pass
+                elif fitnessScore != -100 and np.corrcoef(dailyReturns, self.bestFit[2])[0,1] < 0.7:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
+                    validAlpha.append(
+                        [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues])
+                
+                print("Done:", count)
+                count += 1
 
-                    if fitnessScore != -1:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
-                        validAlpha.append([self.currAlpha, fitnessScore, dailyReturns, annualizedReturns, sharpe,
-                                           self.OperandsValues])
-
+            pool.close()
+            pool.join()
+            
             if validAlpha == []:
                 print('continue')
                 continue
-
-            # sort new mutated alphas by decreasing order of fitness
-            newAlphaInfo = sorted(validAlpha, key=lambda x: x[1], reverse=True)[0]
-            # get best fit alpha in new mutated alphas
+            
+            #sort new mutated alphas by decreasing order of fitness
+            newAlphaInfo = sorted(validAlpha, key = lambda x: x[1], reverse = True)[0]
+            newAlphaInfo[0].graph.show()
+            print('++++++++++++++++++++++++++++++++++++++++')
+            print('VALIDATION FITNESS:', newAlphaInfo[1])
+            print('ANNUAlIZED RETURNS:', newAlphaInfo[3])
+            print('SHARPE RATIO      :', newAlphaInfo[4])
+            plt.figure(figsize = (5,3))
+            plt.plot(newAlphaInfo[2])
+            plt.title('Cumulative Returns')
+            plt.ylabel('Returns')
+            plt.show()
+            print('++++++++++++++++++++++++++++++++++++++++')
+            
+            #get best fit alpha in new mutated alphas
             self.currAlpha = newAlphaInfo[0]
             fingerPrint = self.fingerprint()
             self.fitnessScore[fingerPrint] = newAlphaInfo[1]
-
+            
             # if this new alpha beat best fit alpha ever -> replace best fit alpha
             if newAlphaInfo[1] > self.bestFit[1]:
                 self.bestFit = newAlphaInfo
-
+            
             # add alpha to population and remove oldest alpha
             self.population.append(self.currAlpha)
             self.population.pop(0)
-
-            # summary best fit alpha ever
+            
+            #summary best fit alpha ever
             self.summaryBestFit()
-
+        
         self.extractAlpha(self.name)
 
     def importData(self):
@@ -377,20 +490,19 @@ class AlphaEvolve():
         None.
 
         '''
-        main_curr = ['ADA', 'BCH', 'BNB', 'BTC', 'DASH', 'EOS', 'ETH', 'LTC', 'NEO', 'TRX', 'XEM', 'XLM', 'XMR', 'XRP',
-                     'ZEC', 'USDS']
+        #main_curr = ['ADA', 'BCH', 'BNB', 'BTC', 'DASH', 'EOS', 'ETH', 'LTC', 'NEO', 'TRX', 'XEM', 'XLM', 'XMR', 'XRP', 'ZEC', 'USDS']
         main_curr = ['BTC', 'EOS', 'ETH', 'LTC']
         main_pairs = [pair + 'USDT' for pair in main_curr]
         self.data = {}
         with ZipFile(self.file, "r") as zip_ref:
             # Get list of files names in zip
-            # list_of_files = zip_ref.namelist()
+            #list_of_files = zip_ref.namelist()
 
             # Iterate over the list of file names in given list
-            # for elem in list_of_files:
+            #for elem in list_of_files:
             # get the symbol
-            # symbol = os.path.splitext(elem)[0]
-
+            #    symbol = os.path.splitext(elem)[0]
+             
             for symbol in main_pairs:
                 # read csv
                 with zip_ref.open(symbol + '.csv') as f:
@@ -416,7 +528,7 @@ class AlphaEvolve():
                     new_df.dropna(inplace=True)
 
                     # filter data have start date before 2020 and end date on 2021-5-31
-                    if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2020, 1, 1):
+                    if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2019, 1, 1):
                         self.data[symbol] = new_df
 
         self.symbolList = list(self.data.keys())
@@ -508,37 +620,47 @@ class AlphaEvolve():
                 except:
                     continue
 
-    def parallelPopulation(self, alpha):
-        self.bestFit = [None, -1000, 0, 0, 0, {}]
+    def parallelPopulation(self, alpha: Alpha):
+        print("Start alpha...")
         self.currAlpha = alpha
         # prunning
         self.prunning()
-
         # evaluation Alpha
         fitnessScore, dailyReturns, annualizedReturns, sharpe = self.summaryAlpha()
-
         # fingerprint
         fingerPrint = self.fingerprint()
-        if fingerPrint in self.fitnessScore:
-            pass
-        else:
-            self.fitnessScore[fingerPrint] = fitnessScore
 
-        # update best fit alpha ever
-        if fitnessScore > self.bestFit[1]:
-            self.bestFit = [self.currAlpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues]
+        return alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues
+
 
     def runFirstPopulation(self):
         '''
         Evaluate all alpha in the first population
-
         Returns
         -------
         None.
-
         '''
-        with Pool() as p:
-            p.map(self.parallelPopulation, self.population[:self.populationLength])
+        self.bestFit = [None, -1000, 0, 0, 0, {}]
+        ctx = multiprocessing.get_context('spawn')
+        pool = ctx.Pool()
+        count = 0
+        for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues in \
+                pool.imap(self.parallelPopulation, self.population[:self.populationLength]):
+
+            if alpha.fingerprint() in self.fitnessScore:
+                pass
+            else:
+                self.fitnessScore[alpha.fingerprint()] = fitnessScore
+
+            # update best fit alpha ever
+            if fitnessScore > self.bestFit[1]:
+                self.bestFit = [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues]
+            
+            self.population[count] = alpha
+            print("Done: ", count)
+            count += 1
+        pool.close()
+        pool.join()
 
     def evaluate(self):
         '''
@@ -657,7 +779,15 @@ class AlphaEvolve():
             self.predict()
             self.addS0(i)
             self.update()
-
+    
+    def evaluate1day(self, i: int):
+        self.addM0(i)
+        self.setup()
+        self.predict()
+        self.addS0(i)
+        return i, cp.corrcoef(cp.array(self.OperandsValues['s1']), cp.array(self.OperandsValues['s0']))[0, 1], \
+            self.OperandsValues['s1'].copy(), self.OperandsValues['s0'].copy()
+        
     def validate(self):
         '''
         evaluate and predict the current alpha using validation data
@@ -667,6 +797,26 @@ class AlphaEvolve():
         tuple
             fitness score, prediction, actual.
 
+        ''''''
+        fitnessScore = [0]*self.validLength
+        validPrediction = [0]*self.validLength
+        validActual = [0]*self.validLength
+        
+        ctx = multiprocessing.get_context('spawn')
+        pool = ctx.Pool()
+        for i, corrcoef, s1_list, s0_list in pool.imap(self.evaluate1day, list(range(self.trainLength, self.trainLength + self.validLength))):
+            fitnessScore[i - self.trainLength] = corrcoef
+            validPrediction[i - self.trainLength] = s1_list
+            validActual[i - self.trainLength] = s0_list
+        pool.close()
+        pool.join()
+        
+        fitnessScore = sum(fitnessScore) / len(fitnessScore) / cp.std(cp.array(fitnessScore))
+        if cp.isnan(fitnessScore): fitnessScore = cp.array(-100)
+        
+        validPrediction = cp.array(validPrediction)
+        
+        validActual = cp.array(validActual)
         '''
         fitnessScore = []
         validPrediction = []
@@ -677,14 +827,14 @@ class AlphaEvolve():
             self.setup()
             self.predict()
             self.addS0(i)
-            fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0, 1])
+            fitnessScore.append(cp.corrcoef(cp.asarray(self.OperandsValues['s1']), cp.asarray(self.OperandsValues['s0']))[0, 1])
             validPrediction.append(self.OperandsValues['s1'].copy())
             validActual.append(self.OperandsValues['s0'].copy())
-        fitnessScore = sum(fitnessScore) / len(fitnessScore) / np.std(fitnessScore)
+        fitnessScore = sum(fitnessScore) / len(fitnessScore) / cp.std(cp.array(fitnessScore))
 
         # if fitness score is nan -> s1 is constance -> set fitness score to the lowest value possible
-        if np.isnan(fitnessScore): fitnessScore = -100
-        return fitnessScore, cp.array(validPrediction, dtype=cp.float32), cp.array(validActual, dtype=cp.float32)
+        if cp.isnan(fitnessScore): fitnessScore = cp.array(-100)
+        return fitnessScore, validPrediction, validActual
 
     def test(self):
         '''
@@ -695,6 +845,27 @@ class AlphaEvolve():
         tuple
             test score, prediction, actual.
 
+        ''''''
+        testScore = [0]*self.validLength
+        testPrediction = [0]*self.validLength
+        testActual = [0]*self.validLength
+        
+        ctx = multiprocessing.get_context('spawn')
+        pool = ctx.Pool()
+        for i, corrcoef, s1_list, s0_list in pool.imap(self.evaluate1day, list(range(self.trainLength, self.trainLength + self.validLength))):
+            testScore[i - self.trainLength] = corrcoef
+            testPrediction[i - self.trainLength] = s1_list
+            testActual[i - self.trainLength] = s0_list
+        pool.close()
+        pool.join()
+        
+        testScore = sum(testScore) / len(testScore) / cp.std(cp.array(testScore))
+        if cp.isnan(testScore): testScore = cp.array(-100)
+        
+        testPrediction = cp.array(testPrediction)
+        
+        testActual = cp.array(testActual)
+        
         '''
         testScore = []
         testPrediction = []
@@ -705,13 +876,13 @@ class AlphaEvolve():
             self.setup()
             self.predict()
             self.addS0(i)
-            testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0, 1])
+            testScore.append(cp.corrcoef(cp.asarray(self.OperandsValues['s1']), cp.asarray(self.OperandsValues['s0']))[0, 1])
             testPrediction.append(self.OperandsValues['s1'].copy())
             testActual.append(self.OperandsValues['s0'].copy())
-        testScore = sum(testScore) / len(testScore) / np.std(testScore)
+        testScore = sum(testScore) / len(testScore) / cp.std(cp.array(testScore))
         # if test score is nan -> s1 is constance -> set test score to the lowest value possible
-        if np.isnan(testScore): testScore = -100
-        return testScore, cp.array(testPrediction, dtype=cp.float32), cp.array(testActual, dtype=cp.float32)
+        if cp.isnan(testScore): testScore = cp.array(-100)
+        return testScore, testPrediction, testActual
 
     def setup(self):
         '''
@@ -855,7 +1026,7 @@ class AlphaEvolve():
         plt.show()
         print('=====================================================')
 
-    def getBestFit(self):
+    def getBestFit(self, group):
         '''
         return the best fitness score of alpha in attribute tournament and point currAlpha to that alpha
 
@@ -866,12 +1037,12 @@ class AlphaEvolve():
 
         '''
         bestFit = -10000
-        for alpha in self.tournament:
+        for alpha in group:
             fitnessScore = self.fitnessScore[alpha.fingerprint()]
             if fitnessScore > bestFit:
                 bestFit = fitnessScore
-                self.currAlpha = alpha
-        return bestFit
+                bestAlpha = alpha
+        return bestFit, bestAlpha
 
     def mutate(self):
         # mutate the currAlpha
@@ -880,7 +1051,7 @@ class AlphaEvolve():
     def pickTournament(self):
         #    randomly choose tournamentLength alphas in population and bestfit alpha
         # -> this method facilitate to choose best fit alpha ever (even if that alpha is not in population)
-        self.tournament = cp.random.choice(self.population + [self.bestFit[0]], replace=False,
+        self.tournament = np.random.choice(self.population + [self.bestFit[0]], replace=False,
                                            size=self.tournamentLength)
 
     def extractAlpha(self, name: str = 'abc'):
@@ -978,19 +1149,20 @@ class AlphaEvolve():
                 self.OperandsValues[Output][i] = outputValue
 
         if op == 4:
-            if (cp.array(self.OperandsValues[Inputs[1]]) == None).any():
+            try:
+                if (cp.around(cp.array(self.OperandsValues[Inputs[1]]), 6) == 0).any():
+                    for i in range(len(self.symbolList)):
+                        # print('DEL:', Operation)
+                        symbol = self.symbolList[i]
+                        if Operation in self.kAlphas[symbol].graph.setupOPs: self.kAlphas[symbol].graph.setupOPs.remove(
+                            Operation)
+                        if Operation in self.kAlphas[symbol].graph.predictOPs: self.kAlphas[symbol].graph.predictOPs.remove(
+                            Operation)
+                        if Operation in self.kAlphas[symbol].graph.updateOPs: self.kAlphas[symbol].graph.updateOPs.remove(
+                            Operation)
+                    return
+            except:
                 pass
-            elif (cp.round(cp.array(self.OperandsValues[Inputs[1]]), 6) == 0).any():
-                for i in range(len(self.symbolList)):
-                    # print('DEL:', Operation)
-                    symbol = self.symbolList[i]
-                    if Operation in self.kAlphas[symbol].graph.setupOPs: self.kAlphas[symbol].graph.setupOPs.remove(
-                        Operation)
-                    if Operation in self.kAlphas[symbol].graph.predictOPs: self.kAlphas[symbol].graph.predictOPs.remove(
-                        Operation)
-                    if Operation in self.kAlphas[symbol].graph.updateOPs: self.kAlphas[symbol].graph.updateOPs.remove(
-                        Operation)
-                return
 
             for i in range(len(self.symbolList)):
                 symbol = self.symbolList[i]
@@ -1035,19 +1207,21 @@ class AlphaEvolve():
                 self.OperandsValues[Output][i] = outputValue
 
         if op == 6:
-            if (cp.array(self.OperandsValues[Inputs[0]]) == None).any():
+            try:
+                if (cp.around(cp.array(self.OperandsValues[Inputs[0]]), 6) == 0).any():
+                    for i in range(len(self.symbolList)):
+                        # print('DEL:', Operation)
+                        symbol = self.symbolList[i]
+                        if Operation in self.kAlphas[symbol].graph.setupOPs: self.kAlphas[symbol].graph.setupOPs.remove(
+                            Operation)
+                        if Operation in self.kAlphas[symbol].graph.predictOPs: self.kAlphas[symbol].graph.predictOPs.remove(
+                            Operation)
+                        if Operation in self.kAlphas[symbol].graph.updateOPs: self.kAlphas[symbol].graph.updateOPs.remove(
+                            Operation)
+                    return
+            except:
                 pass
-            elif (cp.round(cp.array(self.OperandsValues[Inputs[0]]), 6) == 0).any():
-                for i in range(len(self.symbolList)):
-                    # print('DEL:', Operation)
-                    symbol = self.symbolList[i]
-                    if Operation in self.kAlphas[symbol].graph.setupOPs: self.kAlphas[symbol].graph.setupOPs.remove(
-                        Operation)
-                    if Operation in self.kAlphas[symbol].graph.predictOPs: self.kAlphas[symbol].graph.predictOPs.remove(
-                        Operation)
-                    if Operation in self.kAlphas[symbol].graph.updateOPs: self.kAlphas[symbol].graph.updateOPs.remove(
-                        Operation)
-                return
+            
             for i in range(len(self.symbolList)):
                 symbol = self.symbolList[i]
 
@@ -1089,19 +1263,20 @@ class AlphaEvolve():
                 self.OperandsValues[Output][i] = outputValue
 
         if op in [10, 11]:
-            if (cp.array(self.OperandsValues[Inputs[0]]) == None).any():
+            try:
+                if (abs(cp.around(cp.array(self.OperandsValues[Inputs[0]]), 6)) > 1).any():
+                    for i in range(len(self.symbolList)):
+                        # print('DEL:', Operation)
+                        symbol = self.symbolList[i]
+                        if Operation in self.kAlphas[symbol].graph.setupOPs: self.kAlphas[symbol].graph.setupOPs.remove(
+                            Operation)
+                        if Operation in self.kAlphas[symbol].graph.predictOPs: self.kAlphas[symbol].graph.predictOPs.remove(
+                            Operation)
+                        if Operation in self.kAlphas[symbol].graph.updateOPs: self.kAlphas[symbol].graph.updateOPs.remove(
+                            Operation)
+                    return
+            except:
                 pass
-            elif (abs(cp.round(cp.array(self.OperandsValues[Inputs[0]]), 6)) > 1).any():
-                for i in range(len(self.symbolList)):
-                    # print('DEL:', Operation)
-                    symbol = self.symbolList[i]
-                    if Operation in self.kAlphas[symbol].graph.setupOPs: self.kAlphas[symbol].graph.setupOPs.remove(
-                        Operation)
-                    if Operation in self.kAlphas[symbol].graph.predictOPs: self.kAlphas[symbol].graph.predictOPs.remove(
-                        Operation)
-                    if Operation in self.kAlphas[symbol].graph.updateOPs: self.kAlphas[symbol].graph.updateOPs.remove(
-                        Operation)
-                return
 
             for i in range(len(self.symbolList)):
                 symbol = self.symbolList[i]
@@ -1123,19 +1298,20 @@ class AlphaEvolve():
                 self.OperandsValues[Output][i] = outputValue
 
         if op == 14:
-            if (cp.array(self.OperandsValues[Inputs[0]]) == None).any():
+            try:
+                if (cp.around(cp.array(self.OperandsValues[Inputs[0]]), 6) <= 0).any():
+                    for i in range(len(self.symbolList)):
+                        # print('DEL:', Operation)
+                        symbol = self.symbolList[i]
+                        if Operation in self.kAlphas[symbol].graph.setupOPs: self.kAlphas[symbol].graph.setupOPs.remove(
+                            Operation)
+                        if Operation in self.kAlphas[symbol].graph.predictOPs: self.kAlphas[symbol].graph.predictOPs.remove(
+                            Operation)
+                        if Operation in self.kAlphas[symbol].graph.updateOPs: self.kAlphas[symbol].graph.updateOPs.remove(
+                            Operation)
+                    return
+            except:
                 pass
-            elif (cp.round(cp.array(self.OperandsValues[Inputs[0]]), 6) <= 0).any():
-                for i in range(len(self.symbolList)):
-                    # print('DEL:', Operation)
-                    symbol = self.symbolList[i]
-                    if Operation in self.kAlphas[symbol].graph.setupOPs: self.kAlphas[symbol].graph.setupOPs.remove(
-                        Operation)
-                    if Operation in self.kAlphas[symbol].graph.predictOPs: self.kAlphas[symbol].graph.predictOPs.remove(
-                        Operation)
-                    if Operation in self.kAlphas[symbol].graph.updateOPs: self.kAlphas[symbol].graph.updateOPs.remove(
-                        Operation)
-                return
 
             for i in range(len(self.symbolList)):
                 symbol = self.symbolList[i]
@@ -1214,7 +1390,7 @@ class AlphaEvolve():
                     if op == 17:
                         outputValue = OP17(matrixInput)
                     elif op == 30:
-                        if (cp.round(matrixInput.value, 6) != 0).all():
+                        if (cp.around(matrixInput.value, 6) != 0).all():
                             outputValue = OP30(matrixInput)
                         else:
                             # print('DEL:', Operation)
@@ -1294,19 +1470,20 @@ class AlphaEvolve():
                     self.OperandsValues[Output][i] = outputValue
 
         if op == 20:
-            if (cp.array(self.OperandsValues[Inputs[0]]) == None).any():
+            try:
+                if (cp.around(cp.array(self.OperandsValues[Inputs[0]]), 6) == 0).any():
+                    for i in range(len(self.symbolList)):
+                        # print('DEL:', Operation)
+                        symbol = self.symbolList[i]
+                        if Operation in self.kAlphas[symbol].graph.setupOPs: self.kAlphas[symbol].graph.setupOPs.remove(
+                            Operation)
+                        if Operation in self.kAlphas[symbol].graph.predictOPs: self.kAlphas[symbol].graph.predictOPs.remove(
+                            Operation)
+                        if Operation in self.kAlphas[symbol].graph.updateOPs: self.kAlphas[symbol].graph.updateOPs.remove(
+                            Operation)
+                    return
+            except: 
                 pass
-            elif (cp.round(cp.array(self.OperandsValues[Inputs[0]]), 6) == 0).any():
-                for i in range(len(self.symbolList)):
-                    # print('DEL:', Operation)
-                    symbol = self.symbolList[i]
-                    if Operation in self.kAlphas[symbol].graph.setupOPs: self.kAlphas[symbol].graph.setupOPs.remove(
-                        Operation)
-                    if Operation in self.kAlphas[symbol].graph.predictOPs: self.kAlphas[symbol].graph.predictOPs.remove(
-                        Operation)
-                    if Operation in self.kAlphas[symbol].graph.updateOPs: self.kAlphas[symbol].graph.updateOPs.remove(
-                        Operation)
-                return
 
             for i in range(len(self.symbolList)):
                 symbol = self.symbolList[i]
@@ -1442,7 +1619,7 @@ class AlphaEvolve():
                 elif op == 25:
                     outputValue = OP25(vectorInput1, vectorInput2)
                 elif op == 26:
-                    if (cp.round(vectorInput2.value, 6) != 0).all():
+                    if (cp.around(vectorInput2.value, 6) != 0).all():
                         outputValue = OP26(vectorInput1, vectorInput2)
                     else:
                         # print('DEL:', Operation, vectorInput1.shape, vectorInput2.shape, vectorOutput.shape)
@@ -1896,7 +2073,7 @@ class AlphaEvolve():
                 elif op == 41:
                     outputValue = OP41(matrixInput1, matrixInput2)
                 elif op == 42:
-                    if (cp.round(matrixInput2.value, 6) != 0).all():
+                    if (cp.around(matrixInput2.value, 6) != 0).all():
                         outputValue = OP42(matrixInput1, matrixInput2)
                     else:
                         # print('DEL:', Operation, matrixInput1.shape, matrixInput2.shape, matrixOutput.shape)
@@ -1932,17 +2109,17 @@ class AlphaEvolve():
                         cp.ones(shape=(self.window, len(self.featuresList))))  # shape = shape of m0
                     self.OperandsValues[Inputs[1]][i] = matrixInput2.value
                 elif matrixInput1.shape is None and matrixInput2.shape is None and matrixOutput.shape is not None:
-                    randomLength = cp.random.randint(2, 20)
+                    randomLength = int(cp.random.randint(2, 20))
                     matrixInput1.updateValue(cp.ones(shape=(matrixOutput.shape[0], randomLength)))
                     self.OperandsValues[Inputs[0]][i] = matrixInput1.value
                     matrixInput2.updateValue(cp.ones(shape=(randomLength, matrixOutput.shape[1])))
                     self.OperandsValues[Inputs[1]][i] = matrixInput2.value
                 elif matrixInput1.shape is None and matrixInput2.shape is not None and matrixOutput.shape is None:
-                    randomLength = cp.random.randint(2, 20)
+                    randomLength = int(cp.random.randint(2, 20))
                     matrixInput1.updateValue(cp.ones(shape=(randomLength, matrixInput2.shape[0])))
                     self.OperandsValues[Inputs[0]][i] = matrixInput1.value
                 elif matrixInput1.shape is not None and matrixInput2.shape is None and matrixOutput.shape is None:
-                    randomLength = cp.random.randint(2, 20)
+                    randomLength = int(cp.random.randint(2, 20))
                     matrixInput2.updateValue(cp.ones(shape=(matrixInput1.shape[1], randomLength)))
                     self.OperandsValues[Inputs[1]][i] = matrixInput2.value
                 elif matrixInput1.shape is None and matrixInput2.shape is not None and matrixOutput.shape is not None and \
@@ -2073,7 +2250,7 @@ class AlphaEvolve():
                     scalarInput.updateValue(1)
                 self.OperandsValues[Inputs[0]][i] = scalarInput.value
 
-            df = pd.DataFrame({'Scalar': self.OperandsValues[Inputs[0]]})
+            df = pd.DataFrame({'Scalar': cp.array(self.OperandsValues[Inputs[0]]).get()})
             self.OperandsValues[Output] = OP65(df)
 
             for i in range(len(self.symbolList)):
@@ -2090,7 +2267,7 @@ class AlphaEvolve():
                     scalarInput.updateValue(1)
                 self.OperandsValues[Inputs[0]][i] = scalarInput.value
 
-            df = pd.DataFrame({'Scalar': self.OperandsValues[Inputs[0]], 'Industry': [0 for symbol in self.symbolList]})
+            df = pd.DataFrame({'Scalar': cp.array(self.OperandsValues[Inputs[0]]).get(), 'Industry': [0 for symbol in self.symbolList]})
             self.OperandsValues[Output] = OP66(df)
 
             for i in range(len(self.symbolList)):
@@ -2107,7 +2284,7 @@ class AlphaEvolve():
                     scalarInput.updateValue(1)
                 self.OperandsValues[Inputs[0]][i] = scalarInput.value
 
-            df = pd.DataFrame({'Scalar': self.OperandsValues[Inputs[0]], 'Industry': [0 for symbol in self.symbolList]})
+            df = pd.DataFrame({'Scalar': cp.array(self.OperandsValues[Inputs[0]]).get(), 'Industry': [0 for symbol in self.symbolList]})
             self.OperandsValues[Output] = OP67(df)
 
             for i in range(len(self.symbolList)):

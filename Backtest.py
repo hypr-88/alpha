@@ -1,4 +1,5 @@
 import cupy as cp
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -38,6 +39,12 @@ def backtest(returns: cp.ndarray, Prediction: cp.ndarray, show: bool = True, pct
     '''
     
     # make sure the shape of actual and predict returns are the same.
+    if not isinstance(returns, cp.ndarray):
+        returns = cp.asarray([cp.asarray(returns[i]) for i in range(len(returns))])
+            
+    if not isinstance(Prediction, cp.ndarray):
+        Prediction = cp.asarray([cp.asarray(Prediction[i]) for i in range(len(Prediction))])
+        
     if returns.shape == Prediction.shape:
         # the total numbers of symbols
         noSymbol = returns.shape[1]

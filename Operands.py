@@ -135,8 +135,6 @@ class Vector():
         None.
 
         '''
-        if isinstance(v, cp.matrix):
-            v = cp.asarray(v, dtype = cp.float32)
         if not isinstance(v, cp.ndarray):
             try:
                 v = cp.array(v, dtype = cp.float32)
@@ -220,9 +218,6 @@ class Matrix():
         None.
 
         '''
-        
-        if isinstance(m, cp.matrix):
-            m = cp.asarray(m, dtype = cp.float32)
         if not isinstance(m, cp.ndarray):
             try:
                 m = cp.array(m, dtype = cp.float32)
