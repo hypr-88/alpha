@@ -982,7 +982,8 @@ class AlphaEvolve():
             fitnessScore = self.fitnessScore[alpha.fingerprint()]
             if fitnessScore > bestFit:
                 bestFit = fitnessScore
-        return bestFit, alpha
+                bestAlpha = alpha
+        return bestFit, bestAlpha
     
     def mutate(self):
         #mutate the currAlpha
