@@ -384,18 +384,15 @@ class AlphaEvolve():
         bestFit_2, alpha_2 = self.getBestFit([alpha for alpha in self.tournament if alpha != alpha_1])
         newMutate = []
         for i in range(self.numNewAlphaPerMutation):
-            while True:
-                try:
-                    if bestFit_2 < 0 or np.random.binomial(1, bestFit_1/(bestFit_1 + bestFit_2)):
-                        newAlpha = copy.deepcopy(alpha_1)
-                    else:
-                        newAlpha = self.combineAlphas(alpha_1, alpha_2)
-                    
-                    newAlpha.mutate()
-                    newMutate.append(newAlpha)
-                    break
-                except:
-                    continue
+            if bestFit_2 <= 0: 
+                newAlpha = copy.deepcopy(alpha_1)
+            elif np.random.binomial(1, bestFit_1/(bestFit_1 + bestFit_2)):
+                newAlpha = copy.deepcopy(alpha_1)
+            else:
+                newAlpha = self.combineAlphas(alpha_1, alpha_2)
+            
+            newAlpha.mutate()
+            newMutate.append(newAlpha)
             
                 
         return newMutate
@@ -815,7 +812,7 @@ class AlphaEvolve():
         testScore = []
         testPrediction = []
         testActual = []
-        for i in range(self.window, self.dataLength - 1): #(self.trainLength + self.validLength, self.dataLength - 1):
+        for i in range(self.trainLength + self.validLength, self.dataLength - 1):
             #self.currAlpha.graph.show()
             self.addM0(i)
             self.predict()
