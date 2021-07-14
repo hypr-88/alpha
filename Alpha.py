@@ -1066,7 +1066,21 @@ class Alpha():
             if cnt >= 100000:
                 self.graph.addPredictOPs(len(self.graph.predictOPs), 's1', np.random.choice([34, 51, 55]), ['m0'])
                 #self.graph.show()
-        self.mutate_update()
+        
+        # make sure update steps includes s0 and s1
+        cnt = 0
+        valid = False
+        while not valid and cnt < 1000:
+            self.mutate_update()
+            cnt += 1
+            s0_in = False
+            s1_in = False
+            for operation in self.graph.updateOPs:
+                inputs = operation[2]
+                if 's0' in inputs: s0_in = True
+                if 's1' in inputs: s1_in = True
+                if s0_in and s1_in: valid = True
+            
         self.fillUndefinedOperands()
         #print('mutate done')
     

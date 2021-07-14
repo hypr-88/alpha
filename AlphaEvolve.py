@@ -3,6 +3,8 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.stats import chi2_contingency
+
 import copy
 from Operands import Scalar, Vector, Matrix
 from Graph import Graph
@@ -603,14 +605,9 @@ class AlphaEvolve():
 
         '''
         for i in range(self.populationLength):
-            while True:
-                try:
-                    newAlpha = copy.deepcopy(self.currAlpha)
-                    newAlpha.mutate()
-                    self.population.append(newAlpha)
-                    break
-                except:
-                    continue
+            newAlpha = copy.deepcopy(self.currAlpha)
+            newAlpha.mutate()
+            self.population.append(newAlpha)
 
     def parallelPopulation(self, alpha: Alpha):
         print("Start alpha...")
@@ -764,7 +761,7 @@ class AlphaEvolve():
         None.
 
         '''
-        for i in range(self.window, self.dataLength - 1): #self.trainLength):
+        for i in range(self.window, self.trainLength):
             #self.currAlpha.graph.show()
             self.addM0(i)
             self.setup()
@@ -790,11 +787,17 @@ class AlphaEvolve():
             self.addM0(i)
             self.predict()
             self.addS0(i)
-            fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
+            #fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
             validPrediction.append(self.OperandsValues['s1'].copy())
             validActual.append(self.OperandsValues['s0'].copy())
-        fitnessScore = sum(fitnessScore)/len(fitnessScore)/np.std(fitnessScore)
+        #fitnessScore = sum(fitnessScore)/len(fitnessScore)/np.std(fitnessScore)
+        try:
+            for i in range(len(self.symbolList)):
+                print([validPrediction[j][i] for j in range(len(validPrediction))], [validActual[j][i] for j in range(len(validActual))])
+                fitnessScore.append(calc_MI([validPrediction[j][i] for j in range(len(validPrediction))], [validActual[j][i] for j in range(len(validActual))]))
         
+            fitnessScore = sum(fitnessScore)/len(fitnessScore)
+        except: fitnessScore = -100
         #if fitness score is nan -> s1 is constance -> set fitness score to the lowest value possible
         if np.isnan(fitnessScore): fitnessScore = -100
         return fitnessScore, np.array(validPrediction, dtype = np.float32), np.array(validActual, dtype = np.float32)
@@ -817,10 +820,16 @@ class AlphaEvolve():
             self.addM0(i)
             self.predict()
             self.addS0(i)
-            testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
+            #testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
             testPrediction.append(self.OperandsValues['s1'].copy())
             testActual.append(self.OperandsValues['s0'].copy())
-        testScore = sum(testScore)/len(testScore)/np.std(testScore)
+        #testScore = sum(testScore)/len(testScore)/np.std(testScore)
+        try:
+            for i in range(len(self.symbolList)):
+                testScore.append(calc_MI([testPrediction[j][i] for j in range(len(testPrediction))], [testActual[j][i] for j in range(len(testActual))]))
+            
+            testScore = sum(testScore)/len(testScore)
+        except: testScore = -100
         #if test score is nan -> s1 is constance -> set test score to the lowest value possible
         if np.isnan(testScore): testScore = -100
         return  testScore, np.array(testPrediction, dtype = np.float32), np.array(testActual, dtype = np.float32)
@@ -2156,7 +2165,17 @@ class AlphaEvolve():
                 symbol = self.symbolList[i]
                 scalarOutput = self.kAlphas[symbol].graph.nodes[Output]
                 scalarOutput.updateValue(self.OperandsValues[Output][i])
-                
+
+def calc_MI(x, y):
+    bins = int(np.sqrt(len(x)))
+    if len(np.unique(x)) > bins and len(np.unique(y)) > bins:
+        c_xy = np.histogram2d(x, y, bins)[0]
+        g, p, dof, expected = chi2_contingency(c_xy, lambda_="log-likelihood")
+        mi = 0.5 * g / c_xy.sum()
+    else:
+        mi = 0
+    return mi
+
 if __name__ == '__main__':
     x = AlphaEvolve()
     x.run()
