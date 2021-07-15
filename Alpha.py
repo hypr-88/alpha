@@ -1070,16 +1070,19 @@ class Alpha():
         # make sure update steps includes s0 and s1
         cnt = 0
         valid = False
-        while not valid and cnt < 1000:
+        while not valid and cnt < 10:
             self.mutate_update()
             cnt += 1
             s0_in = False
             s1_in = False
-            for operation in self.graph.updateOPs:
+            for operation in self.graph.updateOPs.copy():
                 inputs = operation[2]
                 if 's0' in inputs: s0_in = True
                 if 's1' in inputs: s1_in = True
                 if s0_in and s1_in: valid = True
+            if cnt >= 10 and not valid:
+                key = self.graph.addNodes(Scalar(0))
+                self.graph.addUpdateOPs(len(self.graph.updateOPs), key, 2, ['s0', 's1'])
             
         self.fillUndefinedOperands()
         #print('mutate done')
