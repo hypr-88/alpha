@@ -16,6 +16,8 @@ from dateutil.relativedelta import relativedelta
 
 from zipfile import ZipFile
 import os
+import requests
+import json
 np.seterr(divide='ignore', invalid='ignore')
 class AlphaEvolve():
     '''
