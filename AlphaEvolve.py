@@ -3,6 +3,8 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.stats import chi2_contingency
+
 import copy
 from Operands import Scalar, Vector, Matrix
 from Graph import Graph
@@ -16,6 +18,8 @@ from dateutil.relativedelta import relativedelta
 
 from zipfile import ZipFile
 import os
+import requests
+import json
 np.seterr(divide='ignore', invalid='ignore')
 class AlphaEvolve():
     '''
@@ -204,7 +208,7 @@ class AlphaEvolve():
     run()
         run the alpha evolve
     '''
-    def __init__(self, name = 'abc', graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 3,
+    def __init__(self, name = 'abc', mutateProb = 0.9, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 3,
                  trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxNumNodes: int = 200, maxLenShapeNode: int = 30,
                  file: str = "may_premium_dataset_USDT.zip"):
         '''
@@ -235,6 +239,7 @@ class AlphaEvolve():
 
         '''
         self.name = name
+        self.mutateProb = mutateProb
         
         self.startTime = datetime.now()
         days, hours, minutes, seconds = TimeBudget
@@ -285,7 +290,7 @@ class AlphaEvolve():
         None.
 
         '''
-        self.currAlpha = Alpha(graph, maxNumNodes = self.maxNumNodes, mutateProb = 0.9, rf = 0.0001, maxLenShapeNode = self.maxLenShapeNode)
+        self.currAlpha = Alpha(graph, maxNumNodes = self.maxNumNodes, mutateProb = self.mutateProb, rf = 0.0001, maxLenShapeNode = self.maxLenShapeNode)
 
     def parallelNewMutate(self, alpha: Alpha):
         self.currAlpha = alpha
@@ -301,15 +306,15 @@ class AlphaEvolve():
         
         nodes = {}
         for key, value in graph_1.nodes.items():
-            if key not in {'m0', 's1'}:
+            if key not in {'m0', 's1', 's0'}:
                 nodes[key+'1'] = copy.deepcopy(value)
-            elif key == 'm0':
+            elif key in {'m0', 's0'}:
                 nodes[key] = copy.deepcopy(value)
             elif key == 's1':
                 nodes[key+'1'] = copy.deepcopy(value)
                 nodes[key] = copy.deepcopy(value)
         for key, value in graph_2.nodes.items():
-            if key != 'm0':
+            if key not in {'m0', 's0'}:
                 nodes[key+'2'] = copy.deepcopy(value)
         nodes['s3'] = Scalar()
         nodes['s4'] = Scalar(2)
@@ -326,44 +331,44 @@ class AlphaEvolve():
         newUpdate = []
         for operation in setupOPs_1:
             out, op, inps = operation
-            if isinstance(out, str) and out != 'm0': out += '1'
+            if isinstance(out, str) and out not in {'m0', 's0'}: out += '1'
             for i, inp in enumerate(inps):
-                if isinstance(inp, str) and inp != 'm0': inps[i] += '1'
+                if isinstance(inp, str) and inp not in {'m0', 's0'}: inps[i] += '1'
             newSetup.append([out, op, inps])
         
         for operation in setupOPs_2:
             out, op, inps = operation
-            if isinstance(out, str) and out != 'm0': out += '2'
+            if isinstance(out, str) and out not in {'m0', 's0'}: out += '2'
             for i, inp in enumerate(inps):
-                if isinstance(inp, str) and inp != 'm0': inps[i] += '2'
+                if isinstance(inp, str) and inp not in {'m0', 's0'}: inps[i] += '2'
             newSetup.append([out, op, inps])
         
         for operation in predictOPs_1:
             out, op, inps = operation
-            if isinstance(out, str) and out != 'm0': out += '1'
+            if isinstance(out, str) and out not in {'m0', 's0'}: out += '1'
             for i, inp in enumerate(inps):
-                if isinstance(inp, str) and inp != 'm0': inps[i] += '1'
+                if isinstance(inp, str) and inp not in {'m0', 's0'}: inps[i] += '1'
             newPredict.append([out, op, inps])
         
         for operation in predictOPs_2:
             out, op, inps = operation
-            if isinstance(out, str) and out != 'm0': out += '2'
+            if isinstance(out, str) and out not in {'m0', 's0'}: out += '2'
             for i, inp in enumerate(inps):
-                if isinstance(inp, str) and inp != 'm0': inps[i] += '2'
+                if isinstance(inp, str) and inp not in {'m0', 's0'}: inps[i] += '2'
             newPredict.append([out, op, inps])
         
         for operation in updateOPs_1:
             out, op, inps = operation
-            if isinstance(out, str) and out != 'm0': out += '1'
+            if isinstance(out, str) and out not in {'m0', 's0'}: out += '1'
             for i, inp in enumerate(inps):
-                if isinstance(inp, str) and inp != 'm0': inps[i] += '1'
+                if isinstance(inp, str) and inp not in {'m0', 's0'}: inps[i] += '1'
             newUpdate.append([out, op, inps])
         
         for operation in updateOPs_2:
             out, op, inps = operation
-            if isinstance(out, str) and out != 'm0': out += '2'
+            if isinstance(out, str) and out not in {'m0', 's0'}: out += '2'
             for i, inp in enumerate(inps):
-                if isinstance(inp, str) and inp != 'm0': inps[i] += '2'
+                if isinstance(inp, str) and inp not in {'m0', 's0'}: inps[i] += '2'
             newUpdate.append([out, op, inps])
         
         newPredict.append(['s3', 1, ['s11', 's12']])
@@ -384,18 +389,18 @@ class AlphaEvolve():
         for i in range(self.numNewAlphaPerMutation):
             while True:
                 try:
-                    if bestFit_2 < 0 or np.random.binomial(1, bestFit_1/(bestFit_1 + bestFit_2)):
+                    if bestFit_2 <= 0:
                         newAlpha = copy.deepcopy(alpha_1)
-                    else:
+                    elif np.random.binomial(1, bestFit_1/(bestFit_1 + bestFit_2)):
                         newAlpha = self.combineAlphas(alpha_1, alpha_2)
+                    else:
+                        newAlpha = copy.deepcopy(alpha_1)
                     
                     newAlpha.mutate()
                     newMutate.append(newAlpha)
                     break
                 except:
                     continue
-            
-                
         return newMutate
         
     def run(self):
@@ -428,7 +433,7 @@ class AlphaEvolve():
             for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues in pool.imap(self.parallelNewMutate, newMutate):
                 if fingerPrint in self.fitnessScore:
                     pass
-                elif fitnessScore != -100 and np.corrcoef(dailyReturns, self.bestFit[2])[0,1] < 0.7:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
+                elif fitnessScore != 0 and np.corrcoef(dailyReturns, self.bestFit[2])[0,1] < 0.7:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
                     validAlpha.append(
                         [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues])
                 
@@ -483,20 +488,20 @@ class AlphaEvolve():
         None.
 
         '''
-        main_curr = ['ADA', 'BCH', 'BNB', 'BTC', 'DASH', 'EOS', 'ETH', 'LTC', 'NEO', 'TRX', 'XEM', 'XLM', 'XMR', 'XRP', 'ZEC', 'USDS']
-        #main_curr = ['BTC', 'EOS', 'ETH', 'LTC']
+        #main_curr = ['ADA', 'BCH', 'BNB', 'BTC', 'DASH', 'EOS', 'ETH', 'LTC', 'NEO', 'TRX', 'XEM', 'XLM', 'XMR', 'XRP', 'ZEC', 'USDS']
+        main_curr = ['BTC', 'EOS', 'ETH', 'LTC']
         main_pairs = [pair+'USDT' for pair in main_curr]
         self.data = {}
         with ZipFile(self.file, "r") as zip_ref:
-           # Get list of files names in zip
-           list_of_files = zip_ref.namelist()
+            # Get list of files names in zip
+            #list_of_files = zip_ref.namelist()
            
-           # Iterate over the list of file names in given list
-           for elem in list_of_files:
+            # Iterate over the list of file names in given list
+            #for elem in list_of_files:
                 #get the symbol
-                symbol = os.path.splitext(elem)[0]
+                #symbol = os.path.splitext(elem)[0]
  
-            #for symbol in main_pairs:
+            for symbol in main_pairs:
                 #read csv
                 with zip_ref.open(symbol+'.csv') as f:
                     df = pd.read_csv(f)
@@ -585,11 +590,12 @@ class AlphaEvolve():
         if i<self.window:
             return None
         else:
-            X = self.data[symbol][self.featuresList].iloc[i-self.window:i]
+            X = self.data[symbol][self.featuresList].iloc[:i]
             #normalize
             for col in self.featuresList:
                 X[col] /= X[col].max(skipna = True)
-                
+            
+            X = X.iloc[-self.window:]
             y = self.data[symbol]['return'].iloc[i]
             return np.array(X, dtype = np.float32), np.array(y, dtype = np.float32)
 
@@ -764,7 +770,7 @@ class AlphaEvolve():
         None.
 
         '''
-        for i in range(self.window, self.dataLength - 1): #self.trainLength):
+        for i in range(self.window, self.dataLength - 1): #  range(self.window, self.trainLength):
             #self.currAlpha.graph.show()
             self.addM0(i)
             self.setup()
@@ -790,13 +796,18 @@ class AlphaEvolve():
             self.addM0(i)
             self.predict()
             self.addS0(i)
-            fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
+            #fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
             validPrediction.append(self.OperandsValues['s1'].copy())
             validActual.append(self.OperandsValues['s0'].copy())
-        fitnessScore = sum(fitnessScore)/len(fitnessScore)/np.std(fitnessScore)
+        #fitnessScore = sum(fitnessScore)/len(fitnessScore)/np.std(fitnessScore)
+        try:
+            for i in range(len(self.symbolList)):
+                fitnessScore.append(calc_MI([validPrediction[j][i] for j in range(len(validPrediction))], [validActual[j][i] for j in range(len(validActual))]))
         
+            fitnessScore = sum(fitnessScore)/len(fitnessScore)
+        except: fitnessScore = 0
         #if fitness score is nan -> s1 is constance -> set fitness score to the lowest value possible
-        if np.isnan(fitnessScore): fitnessScore = -100
+        if np.isnan(fitnessScore): fitnessScore = 0
         return fitnessScore, np.array(validPrediction, dtype = np.float32), np.array(validActual, dtype = np.float32)
         
     def test(self):
@@ -812,17 +823,23 @@ class AlphaEvolve():
         testScore = []
         testPrediction = []
         testActual = []
-        for i in range(self.window, self.dataLength - 1): #(self.trainLength + self.validLength, self.dataLength - 1):
+        for i in range(self.window, self.dataLength - 1): #range(self.trainLength + self.validLength, self.dataLength - 1):
             #self.currAlpha.graph.show()
             self.addM0(i)
             self.predict()
             self.addS0(i)
-            testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
+            #testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
             testPrediction.append(self.OperandsValues['s1'].copy())
             testActual.append(self.OperandsValues['s0'].copy())
-        testScore = sum(testScore)/len(testScore)/np.std(testScore)
+        #testScore = sum(testScore)/len(testScore)/np.std(testScore)
+        try:
+            for i in range(len(self.symbolList)):
+                testScore.append(calc_MI([testPrediction[j][i] for j in range(len(testPrediction))], [testActual[j][i] for j in range(len(testActual))]))
+            
+            testScore = sum(testScore)/len(testScore)
+        except: testScore = 0
         #if test score is nan -> s1 is constance -> set test score to the lowest value possible
-        if np.isnan(testScore): testScore = -100
+        if np.isnan(testScore): testScore = 0
         return  testScore, np.array(testPrediction, dtype = np.float32), np.array(testActual, dtype = np.float32)
     
     def setup(self):
@@ -980,7 +997,7 @@ class AlphaEvolve():
         bestFit = -10000
         for alpha in group:
             fitnessScore = self.fitnessScore[alpha.fingerprint()]
-            if fitnessScore > bestFit:
+            if fitnessScore >= bestFit:
                 bestFit = fitnessScore
                 bestAlpha = alpha
         return bestFit, bestAlpha
@@ -2156,7 +2173,19 @@ class AlphaEvolve():
                 symbol = self.symbolList[i]
                 scalarOutput = self.kAlphas[symbol].graph.nodes[Output]
                 scalarOutput.updateValue(self.OperandsValues[Output][i])
-                
+
+def calc_MI(x, y):
+    bins = min(int(np.sqrt(len(x))), len(np.unique(x)), len(np.unique(y)))
+    try:
+        c_xy = np.histogram2d(x, y, bins)[0]
+        g, p, dof, expected = chi2_contingency(c_xy, lambda_="log-likelihood")
+        mi = 0.5 * g / c_xy.sum()
+        
+        mi /= np.linalg.norm(np.array(x)-np.array(y))
+    except:
+        mi = 0
+    return mi
+
 if __name__ == '__main__':
     x = AlphaEvolve()
     x.run()

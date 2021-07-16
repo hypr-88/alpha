@@ -199,7 +199,7 @@ class Graph():
                 self.updateOPs = []
             
         else:
-            self.nodes = {'s1': Scalar(rf), 'm0': Matrix()}
+            self.nodes = {'s1': Scalar(rf), 's0': Scalar(0) , 'm0': Matrix()}
             self.sCount = 2
             self.vCount = 1
             self.mCount = 1
@@ -732,7 +732,7 @@ class Graph():
 
         '''
         if OP in [1, 2, 3, 44, 47]:
-            # scalar + scalar -> scalar
+            # scalar + scalar -> scalar        
             try:
                 if len(Inputs) == 2 and isinstance(self.nodes[Inputs[0]], Scalar) and isinstance(self.nodes[Inputs[1]], Scalar) and isinstance(self.nodes[Output], Scalar):
                     return True
