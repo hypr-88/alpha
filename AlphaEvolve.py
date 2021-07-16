@@ -590,11 +590,12 @@ class AlphaEvolve():
         if i<self.window:
             return None
         else:
-            X = self.data[symbol][self.featuresList].iloc[i-self.window:i]
+            X = self.data[symbol][self.featuresList].iloc[:i]
             #normalize
             for col in self.featuresList:
                 X[col] /= X[col].max(skipna = True)
-                
+            
+            X = X.iloc[-self.window:]
             y = self.data[symbol]['return'].iloc[i]
             return np.array(X, dtype = np.float32), np.array(y, dtype = np.float32)
 
@@ -769,7 +770,7 @@ class AlphaEvolve():
         None.
 
         '''
-        for i in range(self.window, self.trainLength):
+        for i in range(self.window, self.dataLength - 1): #  range(self.window, self.trainLength):
             #self.currAlpha.graph.show()
             self.addM0(i)
             self.setup()
@@ -801,7 +802,6 @@ class AlphaEvolve():
         #fitnessScore = sum(fitnessScore)/len(fitnessScore)/np.std(fitnessScore)
         try:
             for i in range(len(self.symbolList)):
-                print([validPrediction[j][i] for j in range(len(validPrediction))], [validActual[j][i] for j in range(len(validActual))])
                 fitnessScore.append(calc_MI([validPrediction[j][i] for j in range(len(validPrediction))], [validActual[j][i] for j in range(len(validActual))]))
         
             fitnessScore = sum(fitnessScore)/len(fitnessScore)
@@ -2180,6 +2180,8 @@ def calc_MI(x, y):
         c_xy = np.histogram2d(x, y, bins)[0]
         g, p, dof, expected = chi2_contingency(c_xy, lambda_="log-likelihood")
         mi = 0.5 * g / c_xy.sum()
+        
+        mi /= np.linalg.norm(np.array(x)-np.array(y))
     except:
         mi = 0
     return mi

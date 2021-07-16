@@ -988,13 +988,7 @@ class Alpha():
                     else: #uniform [-1,1]
                         op = [node, 59, [-1, 1]]
                 else:
-                    choice = np.random.randint(3)
-                    if choice == 2: #constant
-                        op = [node, 56, [float(self.graph.nodes[node].value)]]
-                    elif choice == 1: #normal(0,1)
-                        op = [node, 62, [0, 1]]
-                    elif choice == 0: #uniform [-1,1]
-                        op = [node, 59, [-1, 1]]
+                    op = [node, 56, [float(self.graph.nodes[node].value)]]
             
             if 'v' in node:
                 if self.graph.nodes[node].value is None:
@@ -1007,15 +1001,8 @@ class Alpha():
                     else: #uniform[-1,1]
                         op = [node, 60, [-1, 1, length]]
                 else:
-                    val = float(self.graph.nodes[node].value[np.random.randint(self.graph.nodes[node].shape)])
-                    length = self.graph.nodes[node].shape
-                    choice = np.random.randint(3)
-                    if choice == 2: #constant
-                        op = [node, 57, [val, self.graph.nodes[node].shape]]
-                    elif choice == 1: # normal (0,1)
-                        op = [node, 63, [0, 1, length]]
-                    elif choice == 0: #uniform [-1, 1]
-                        op = [node, 60, [-1, 1, length]]
+                    val = np.random.normal(loc = 0, scale = 1) #float(self.graph.nodes[node].value[np.random.randint(self.graph.nodes[node].shape)])
+                    op = [node, 57, [val, self.graph.nodes[node].shape]]
             
             if 'm' in node:
                 if self.graph.nodes[node].value is None:
@@ -1031,15 +1018,9 @@ class Alpha():
                 else:
                     i = np.random.randint(self.graph.nodes[node].shape[0])
                     j = np.random.randint(self.graph.nodes[node].shape[1])
-                    val = float(self.graph.nodes[node].value[i, j])
+                    val = np.random.normal(loc = 0, scale = 1) #float(self.graph.nodes[node].value[i, j])
                     i, j = self.graph.nodes[node].shape
-                    choice = np.random.randint(3)
-                    if choice == 2: #constant
-                        op = [node, 58, [val, i, j]]
-                    elif choice == 1: # normal (0,1)
-                        op = [node, 64, [0, 1, i, j]]
-                    elif choice == 0: #uniform [-1, 1]
-                        op = [node, 61, [-1, 1, i, j]]
+                    op = [node, 58, [val, i, j]]
             
             index = np.random.randint(len(self.graph.setupOPs)+1)
             self.graph.addSetupOPs(index, op[0], op[1], op[2])
@@ -1065,6 +1046,7 @@ class Alpha():
             cnt += 1
             if cnt >= 100000:
                 self.graph.addPredictOPs(len(self.graph.predictOPs), 's1', np.random.choice([34, 51, 55]), ['m0'])
+                break
                 #self.graph.show()
         
         # make sure update steps includes s0 and s1
@@ -1083,6 +1065,7 @@ class Alpha():
             if cnt >= 10 and not valid:
                 key = self.graph.addNodes(Scalar(0))
                 self.graph.addUpdateOPs(len(self.graph.updateOPs), key, 2, ['s0', 's1'])
+                break
             
         self.fillUndefinedOperands()
         #print('mutate done')
