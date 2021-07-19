@@ -127,13 +127,13 @@ def OP9(s: Scalar) -> np.float32:
 def OP10(s: Scalar) -> np.float32:
     # arcsin(s)
     if abs(s.value) > 1:
-        raise(inputError("Input must be in the range [-1,1]"))
+        s.value = np.sign(s.value)
     return (np.arcsin(s.value))
 
 def OP11(s: Scalar) -> np.float32:
     # arccos(s)
     if abs(s.value) > 1:
-        raise(inputError("Input must be in the range [-1,1]"))
+        s.value = np.sign(s.value)
     return (np.arccos(s.value))
 
 def OP12(s: Scalar) -> np.float32:

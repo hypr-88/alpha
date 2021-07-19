@@ -287,6 +287,9 @@ class Graph():
         # delete operations will be overwritten
         setup = {}
         for op in self.setupOPs.copy():
+            if op[0] in {'s0', 's1'}:
+                self.setupOPs.remove(op)
+                continue
             if op[0] in setup:
                 self.setupOPs.remove(setup[op[0]])
             setup[op[0]] = op
@@ -299,6 +302,9 @@ class Graph():
         
         update = {}
         for op in self.updateOPs.copy():
+            if op[0] in {'s0', 's1'}:
+                self.updateOPs.remove(op)
+                continue
             if op[0] in update:
                 self.updateOPs.remove(update[op[0]])
             update[op[0]] = op
@@ -306,13 +312,29 @@ class Graph():
         redundantNodes = {}
         # Check s1 connects to m0?
         connection = {'m0': True, 's0': True}
-        if not self.checkS1ConnectsM0('s1', setup, predict, update, connection):
-            # s1 and m0 are not connected -> do no delete anything to facilitate s1 connects to m0
-            for node in list(self.nodes.keys()).copy():
+        updateValid, connect_s0, connect_s1 = self.check_update_operands_connect_S0_S1(update)
+        if not self.checkS1ConnectsM0('s1', setup, predict, update, connection, 's1'):
+            # s1 and m0 are not connected or no operands in update connect to both s0,s1 -> do not delete anything to facilitate s1 connects to m0
+            for node in self.nodes.keys():
                 redundantNodes[node] = False
+                
+        elif not updateValid:
+            self.getRedundantNode('s1', setup, predict, update, redundantNodes)
+            updatedOperands = list(update.keys()).copy()
+            for node in updatedOperands:
+                self.getRedundantNode(node, {}, {}, update, redundantNodes)
+                
+            for node in self.nodes.keys():
+                if node not in redundantNodes:
+                    redundantNodes[node] = True
+                    
         else: #s1 connects to m0 -> delete redundant nodes
             self.getRedundantNode('s1', setup, predict, update, redundantNodes)
-            for node in list(self.nodes.keys()).copy():
+            updatedOperands = [node for node in list(update.keys()).copy() if connect_s0[node] and connect_s1[node] and node in redundantNodes]
+            for node in updatedOperands:
+                self.getRedundantNode(node, {}, {}, update, redundantNodes)
+                
+            for node in self.nodes.keys():
                 if node not in redundantNodes:
                     redundantNodes[node] = True
                     
@@ -437,7 +459,7 @@ class Graph():
 
         '''
         # add avoid list to ignore loops when running DP
-        if node == 's1': 
+        if node == parent: 
             avoidPath[node] = [node]
         else:
             avoid = avoidPath[parent].copy()
@@ -476,7 +498,19 @@ class Graph():
             connection[node] = False
             
         return connection[node]
+    
+    def check_update_operands_connect_S0_S1(self, update):
+        connect_s0 = {'s0': True}
+        connect_s1 = {'s1': True}
+        for node in update.keys():
+            self.checkS1ConnectsM0(node, {}, {}, update, connect_s0, node)
+            self.checkS1ConnectsM0(node, {}, {}, update, connect_s1, node)
         
+        for node in update.keys():
+            if connect_s0[node] and connect_s1[node]:
+                return True, connect_s0, connect_s1
+        return False, connect_s0, connect_s1
+    
     def addS0(self, data: np.ndarray):
         '''
         Method used to update/initiate the value of node S0(actual returns) in attribute nodes.

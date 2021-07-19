@@ -363,7 +363,7 @@ class Alpha():
             #prob% mutating predict by adding Operands
             #add operands
             if (np.random.binomial(1, prob) or len(self.graph.predictOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes:
-                newNodes = np.random.choice([Scalar(), Vector(), Matrix()], size = np.random.randint(1,4), replace = False)
+                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,6), replace = False)
                 
                 #Add Operations have 'key' as Output
                 for new in newNodes:
@@ -488,16 +488,16 @@ class Alpha():
                 if np.random.binomial(1, prob): #remove 1 operation only
                     if len(self.graph.predictOPs) >= 1:
                         key = 's1'
-                        while key in {'s1', 'm0'}: #force sellecting operation output different from s1, m0
+                        while key in {'s1', 'm0', 's0'}: #force sellecting operation output different from s1, m0
                             op_index = np.random.randint(len(self.graph.predictOPs))
                             key = self.graph.predictOPs[op_index][0]
                         self.graph.removePredictOPs(op_index)
                 else: #remove 1 node and its operations
                     key = 's1'
-                    while key in {'s1', 'm0'}: #force sellecting operation output different from s1, m0
-                        key = np.random.choice(list(self.graph.nodes.keys()))
+                    while key in {'s1', 'm0', 's0'}: #force sellecting operation output different from s1, m0
+                        key = np.random.choice(list(self.graph.nodes.keys()).copy())
                     self.graph.removeNodes(key)
-                    for op in self.graph.predictOPs:
+                    for op in self.graph.predictOPs.copy():
                         if key == op[0] or key in op[2]:
                             self.graph.predictOPs.remove(op)
                 
@@ -509,7 +509,7 @@ class Alpha():
                     mode = 'change operation'
                 else: #the less predict operation, the less likely to change operation, the more likely to add operation
                     op_index = np.random.randint(len(self.graph.predictOPs)+1)
-                    key = np.random.choice(list(self.graph.nodes.keys()))
+                    key = np.random.choice(list(self.graph.nodes.keys()).copy())
                     if 's' in key: op = toScalarOp[np.random.randint(len(toScalarOp))]
                     if 'v' in key: op = toVectorOp[np.random.randint(len(toVectorOp))]
                     if 'm' in key: op = toMatrixOp[np.random.randint(len(toMatrixOp))]
@@ -699,7 +699,7 @@ class Alpha():
             #prob% mutating update by adding Operands
             #add operands
             if (np.random.binomial(1, prob) or len(self.graph.updateOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes:
-                newNodes = np.random.choice([Scalar(), Vector(), Matrix()], size = np.random.randint(1,4), replace = False)
+                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,6), replace = False)
                 for new in newNodes:
                     key = self.graph.addNodes(new)
                     ScalarList = [node for node in self.graph.nodes.keys() if 's' in node and node != key]
@@ -823,16 +823,16 @@ class Alpha():
                 if np.random.binomial(1, prob): #remove 1 operation
                     if len(self.graph.updateOPs) >= 1:
                         key = 's1'
-                        while key in {'s1', 'm0'}: #force sellecting operation output different from s1, m0
+                        while key in {'s1', 'm0', 's0'}: #force sellecting operation output different from s1, m0
                             op_index = np.random.randint(len(self.graph.updateOPs))
                             key = self.graph.updateOPs[op_index][0]
                         self.graph.removeUpdateOPs(op_index)
                 else: #remove 1 node and its opereration
                     key = 's1'
-                    while key in {'s1', 'm0'}: #force sellecting operation output different from s1, m0
-                        key = np.random.choice(list(self.graph.nodes.keys()))
+                    while key in {'s1', 'm0', 's0'}: #force sellecting operation output different from s1, m0
+                        key = np.random.choice(list(self.graph.nodes.keys()).copy())
                     self.graph.removeNodes(key)
-                    for op in self.graph.updateOPs:
+                    for op in self.graph.updateOPs.copy():
                         if key == op[0] or key in op[2]:
                             self.graph.updateOPs.remove(op)
                 
@@ -844,7 +844,7 @@ class Alpha():
                     mode = 'change operation'
                 else: #the less update operations, the less likely to change operation, the more likely to add operation
                     op_index = np.random.randint(len(self.graph.updateOPs)+1)
-                    key = np.random.choice(list(self.graph.nodes.keys()))
+                    key = np.random.choice(list(self.graph.nodes.keys()).copy())
                     if 's' in key: op = toScalarOp[np.random.randint(len(toScalarOp))]
                     if 'v' in key: op = toVectorOp[np.random.randint(len(toVectorOp))]
                     if 'm' in key: op = toMatrixOp[np.random.randint(len(toMatrixOp))]
@@ -962,8 +962,16 @@ class Alpha():
             if op[0] in predict:
                 self.graph.predictOPs.remove(predict[op[0]])
             predict[op[0]] = op
-        return self.graph.checkS1ConnectsM0('s1', {}, predict, {}, {'m0': True, 's0': True})
+        return self.graph.checkS1ConnectsM0('s1', {}, predict, {}, {'m0': True, 's0': True}, 's1')
     
+    def checkOperandsConnectS0S1_Update(self):
+        update = {}
+        for op in self.graph.updateOPs.copy():
+            if op[0] in update:
+                self.graph.updateOPs.remove(update[op[0]])
+            update[op[0]] = op
+        return self.graph.check_update_operands_connect_S0_S1(update)[0]
+        
     
     def fillUndefinedOperands(self):
         '''
@@ -988,7 +996,13 @@ class Alpha():
                     else: #uniform [-1,1]
                         op = [node, 59, [-1, 1]]
                 else:
-                    op = [node, 56, [float(self.graph.nodes[node].value)]]
+                    choice = np.random.randint(3)
+                    if choice == 2: #constant
+                        op = [node, 56, [float(self.graph.nodes[node].value)]]
+                    elif choice == 1: #normal(0,1)
+                        op = [node, 62, [0, 1]]
+                    elif choice == 0: #uniform [-1,1]
+                        op = [node, 59, [-1, 1]]
             
             if 'v' in node:
                 if self.graph.nodes[node].value is None:
@@ -1001,8 +1015,15 @@ class Alpha():
                     else: #uniform[-1,1]
                         op = [node, 60, [-1, 1, length]]
                 else:
-                    val = np.random.normal(loc = 0, scale = 1) #float(self.graph.nodes[node].value[np.random.randint(self.graph.nodes[node].shape)])
-                    op = [node, 57, [val, self.graph.nodes[node].shape]]
+                    val = float(self.graph.nodes[node].value[np.random.randint(self.graph.nodes[node].shape)])
+                    length = self.graph.nodes[node].shape
+                    choice = np.random.randint(3)
+                    if choice == 2: #constant
+                        op = [node, 57, [val, self.graph.nodes[node].shape]]
+                    elif choice == 1: # normal (0,1)
+                        op = [node, 63, [0, 1, length]]
+                    elif choice == 0: #uniform [-1, 1]
+                        op = [node, 60, [-1, 1, length]]
             
             if 'm' in node:
                 if self.graph.nodes[node].value is None:
@@ -1018,9 +1039,15 @@ class Alpha():
                 else:
                     i = np.random.randint(self.graph.nodes[node].shape[0])
                     j = np.random.randint(self.graph.nodes[node].shape[1])
-                    val = np.random.normal(loc = 0, scale = 1) #float(self.graph.nodes[node].value[i, j])
+                    val = float(self.graph.nodes[node].value[i, j])
                     i, j = self.graph.nodes[node].shape
-                    op = [node, 58, [val, i, j]]
+                    choice = np.random.randint(3)
+                    if choice == 2: #constant
+                        op = [node, 58, [val, i, j]]
+                    elif choice == 1: # normal (0,1)
+                        op = [node, 64, [0, 1, i, j]]
+                    elif choice == 0: #uniform [-1, 1]
+                        op = [node, 61, [-1, 1, i, j]]
             
             index = np.random.randint(len(self.graph.setupOPs)+1)
             self.graph.addSetupOPs(index, op[0], op[1], op[2])
@@ -1048,21 +1075,14 @@ class Alpha():
                 self.graph.addPredictOPs(len(self.graph.predictOPs), 's1', np.random.choice([34, 51, 55]), ['m0'])
                 break
                 #self.graph.show()
-        
+                
+        self.mutate_update()
         # make sure update steps includes s0 and s1
         cnt = 0
-        valid = False
-        while not valid and cnt < 10:
+        while (not self.checkOperandsConnectS0S1_Update()) and cnt < 100:
             self.mutate_update()
             cnt += 1
-            s0_in = False
-            s1_in = False
-            for operation in self.graph.updateOPs.copy():
-                inputs = operation[2]
-                if 's0' in inputs: s0_in = True
-                if 's1' in inputs: s1_in = True
-                if s0_in and s1_in: valid = True
-            if cnt >= 10 and not valid:
+            if cnt >= 100:
                 key = self.graph.addNodes(Scalar(0))
                 self.graph.addUpdateOPs(len(self.graph.updateOPs), key, 2, ['s0', 's1'])
                 break
