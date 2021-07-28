@@ -3,8 +3,7 @@ import copy
 from Operands import Scalar, Vector, Matrix
 
 from Graph import Graph
-np.seterr(divide='ignore', invalid='ignore')
-
+np.seterr(all="ignore") 
 class Alpha():
     '''
     Class used to present an alpha
@@ -52,7 +51,7 @@ class Alpha():
         Method used to mutate the Graph attribute (Operands/Operations) to generate a new form of graph.
     '''
     
-    def __init__(self, graph: Graph = None, maxNumNodes: int = 200, mutateProb: float = 0.9, rf: float = 0.02, maxLenShapeNode: int = 20):
+    def __init__(self, graph: Graph = None, maxNumNodes: int = 200, mutateProb: float = 0.9, rf: float = 0.02, maxLenShapeNode: int = 20, addProb: float = 0.4, delProb: float = 0.3, changeProb: float = 0.3):
         '''
         Initiate an Alpha given a Graph or create a new Graph for Alpha.
 
@@ -77,6 +76,10 @@ class Alpha():
             
         self.mutateProb = mutateProb
         self.maxLenShapeNode = maxLenShapeNode
+        self.addProb = addProb
+        self.delProb = delProb
+        self.changeProb = changeProb
+        
     def fingerprint(self):
         '''
         Method used to return fingerPrint of the graph of Alpha
@@ -165,8 +168,9 @@ class Alpha():
         '''
         if np.random.binomial(1, self.mutateProb): #90% mutate setup
             prob = self._updateAddOperandProb()
-            if (np.random.binomial(1, prob) or len(self.graph.setupOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes: #prob% mutating setup by adding Operands
-                newNodes = np.random.choice([Scalar(), Vector(), Matrix()], size = np.random.randint(1,4), replace = False)
+            mutateType = weighted_choice([self.addProb, self.delProb, self.changeProb])
+            if (mutateType == 0 or len(self.graph.setupOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes-1: #prob% mutating setup by adding Operands
+                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,min(6, self.graph.maxNumNodes - len(self.graph.nodes))), replace = False)
                 for new in newNodes:
                     key = self.graph.addNodes(new)
                     if 's' in key:
@@ -192,8 +196,8 @@ class Alpha():
                     
                     index = np.random.randint(len(self.graph.setupOPs)+1)
                     self.graph.addSetupOPs(index, op[0], op[1], op[2])
-                
-            elif np.random.binomial(1, 1-prob) or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating setup by removing Operands
+                return 'add'
+            elif mutateType == 1 or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating setup by removing Operands
                 if len(self.graph.setupOPs) >= 1:
                     key = 'm0'
                     while key in {'m0', 's1'}: #avoid delete m0 and s1
@@ -201,8 +205,8 @@ class Alpha():
                         key = self.graph.setupOPs[op_index][0]
                     self.graph.removeNodes(key)
                     self.graph.removeSetupOPs(op_index)
-                
-            elif len(self.graph.setupOPs)>=1: # mutating setup by change operation
+                    return 'del'
+            elif mutateType == 2 and len(self.graph.setupOPs)>=1: # mutating setup by change operation
                 op_index = np.random.randint(len(self.graph.setupOPs))
                 op = self.graph.setupOPs[op_index]
                 if 's' in op[0]: #scalar
@@ -272,7 +276,7 @@ class Alpha():
                         elif choice == 0: #uniform [-1, 1]
                             op[1] = 61
                             op[2] = [-1, 1, i, j]
-    
+                return 'change'
     def mutate_predict(self):
         '''
         This method executes a mutation in the predict step.
@@ -356,15 +360,16 @@ class Alpha():
         '''
         if np.random.binomial(1, self.mutateProb): #90% mutate predict
             prob = self._updateAddOperandProb()
+            mutateType = weighted_choice([self.addProb, self.delProb, self.changeProb])
             toScalarOp = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,21,27,34,44,47,50,51,54,55,65,66,67]
             toVectorOp = [16,18,19,20,22,23,24,25,26,31,35,36,45,48,52,53]
             toMatrixOp = [17,28,29,30,32,33,37,38,39,40,41,42,43,46,49]
             
             #prob% mutating predict by adding Operands
             #add operands
-            if (np.random.binomial(1, prob) or len(self.graph.predictOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes:
-                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,6), replace = False)
-                
+            if (mutateType == 0 or len(self.graph.predictOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes-1:
+                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,min(6, self.graph.maxNumNodes - len(self.graph.nodes))), replace = False)
+                ret = None
                 #Add Operations have 'key' as Output
                 for new in newNodes:
                     key = self.graph.addNodes(new)
@@ -460,7 +465,7 @@ class Alpha():
                     
                     index = np.random.randint(len(self.graph.predictOPs)+1)
                     self.graph.addPredictOPs(index, operation[0], operation[1], operation[2])
-                    
+                    ret = 'add'
                     ###############################################################
                     #Add Operations have 'key' as Input and Scalar as output
                     out = np.random.choice(ScalarList)
@@ -482,9 +487,10 @@ class Alpha():
                     else:
                         index = np.random.randint(len(self.graph.predictOPs)+1)
                         self.graph.addPredictOPs(index, operation[0], operation[1], operation[2])
+                        ret = 'add'
+                if ret is not None: return ret
                     
-                    
-            elif np.random.binomial(1, 1-prob) or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating predict by removing Operands
+            elif mutateType == 1 or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating predict by removing Operands
                 if np.random.binomial(1, prob): #remove 1 operation only
                     if len(self.graph.predictOPs) >= 1:
                         key = 's1'
@@ -500,8 +506,8 @@ class Alpha():
                     for op in self.graph.predictOPs.copy():
                         if key == op[0] or key in op[2]:
                             self.graph.predictOPs.remove(op)
-                
-            else: # mutating predict by change operation
+                return 'del'
+            elif mutateType == 2: # mutating predict by change operation
                 if np.random.binomial(1, min(0.99,len(self.graph.predictOPs)/len(self.graph.nodes))): #the more predict operation, the more likely to change operation only
                     op_index = np.random.randint(len(self.graph.predictOPs))
                     operation = self.graph.predictOPs[op_index]
@@ -608,7 +614,7 @@ class Alpha():
                         self.graph.predictOPs[op_index] = operation
                     elif mode == 'add operation':
                         self.graph.addPredictOPs(op_index, operation[0], operation[1], operation[2])
-                    
+                    return 'change'
     def mutate_update(self):
         '''
         This method executes a mutation in the update step.
@@ -692,14 +698,16 @@ class Alpha():
         '''
         if np.random.binomial(1, self.mutateProb): #90% mutate update
             prob = self._updateAddOperandProb()
+            mutateType = weighted_choice([self.addProb, self.delProb, self.changeProb])
             toScalarOp = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,21,27,34,44,47,50,51,54,55,65,66,67]
             toVectorOp = [16,18,19,20,22,23,24,25,26,31,35,36,45,48,52,53]
             toMatrixOp = [17,28,29,30,32,33,37,38,39,40,41,42,43,46,49]
             
             #prob% mutating update by adding Operands
             #add operands
-            if (np.random.binomial(1, prob) or len(self.graph.updateOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes:
-                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,6), replace = False)
+            if (mutateType == 0 or len(self.graph.updateOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes-1:
+                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,min(6, self.graph.maxNumNodes - len(self.graph.nodes))), replace = False)
+                ret = None
                 for new in newNodes:
                     key = self.graph.addNodes(new)
                     ScalarList = [node for node in self.graph.nodes.keys() if 's' in node and node != key]
@@ -795,7 +803,7 @@ class Alpha():
                     
                     index = np.random.randint(len(self.graph.updateOPs)+1)
                     self.graph.addUpdateOPs(index, operation[0], operation[1], operation[2])
-                    
+                    ret = 'add'
                     ###############################################################
                     #Add Operations have 'key' as Input and Scalar as output
                     out = np.random.choice(ScalarList)
@@ -817,9 +825,9 @@ class Alpha():
                     else:
                         index = np.random.randint(len(self.graph.updateOPs)+1)
                         self.graph.addUpdateOPs(index, operation[0], operation[1], operation[2])
-                    
-                    
-            elif np.random.binomial(1, 1-prob) or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating update by removing Operands
+                        ret = 'add'
+                if ret is not None: return ret    
+            elif mutateType == 1 or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating update by removing Operands
                 if np.random.binomial(1, prob): #remove 1 operation
                     if len(self.graph.updateOPs) >= 1:
                         key = 's1'
@@ -835,8 +843,8 @@ class Alpha():
                     for op in self.graph.updateOPs.copy():
                         if key == op[0] or key in op[2]:
                             self.graph.updateOPs.remove(op)
-                
-            else: # mutating update by change operation
+                return 'del'
+            elif mutateType == 2: # mutating update by change operation
                 if np.random.binomial(1, min(0.99,len(self.graph.updateOPs)/len(self.graph.nodes))): #the more update operations, the more likely to change operation only
                     op_index = np.random.randint(len(self.graph.updateOPs))
                     operation = self.graph.updateOPs[op_index]
@@ -943,7 +951,7 @@ class Alpha():
                         self.graph.updateOPs[op_index] = operation
                     elif mode == 'add operation':
                         self.graph.addUpdateOPs(op_index, operation[0], operation[1], operation[2])
-    
+                    return 'change'
     
     def checkS1ConnectsM0_Predict(self):
         '''
@@ -1064,23 +1072,100 @@ class Alpha():
         None.
 
         '''
-        self.mutate_setup()
-        self.mutate_predict()
+        addProb = self.mutateProb*self._updateAddOperandProb()
+        delProb = self.mutateProb*(1-self._updateAddOperandProb())
+        changeProb = self.mutateProb*self._updateAddOperandProb()*(1-self._updateAddOperandProb())
+        mutateSummary = {'setup': {'prob': {'add': addProb, 'del': delProb, 'change': changeProb}, 
+                                   'actual': {'add': 0, 'del': 0, 'change': 0}}, 
+                         'predict': {'prob': {'add': [], 'del': [], 'change': []}, 
+                                     'actual': {'add': 0, 'del': 0, 'change': 0}}, 
+                         'update': {'prob': {'add': [], 'del': [], 'change': []}, 
+                                    'actual': {'add': 0, 'del': 0, 'change': 0}}}
+        
+        setup = self.mutate_setup()
+        if setup is None: 
+            pass
+        elif setup == 'add':
+            mutateSummary['setup']['actual']['add'] += 1
+        elif setup == 'del':
+            mutateSummary['setup']['actual']['del'] += 1
+        elif setup == 'change':
+            mutateSummary['setup']['actual']['change'] += 1
+        
+        addProb = self.mutateProb*self._updateAddOperandProb()
+        delProb = self.mutateProb*(1-self._updateAddOperandProb())
+        changeProb = self.mutateProb*self._updateAddOperandProb()*(1-self._updateAddOperandProb())
+        mutateSummary['predict']['prob']['add'].append(addProb)
+        mutateSummary['predict']['prob']['del'].append(delProb)
+        mutateSummary['predict']['prob']['change'].append(changeProb)
+        predict = self.mutate_predict()
+        if predict is None: 
+            pass
+        elif predict == 'add':
+            mutateSummary['predict']['actual']['add'] += 1
+        elif predict == 'del':
+            mutateSummary['predict']['actual']['del'] += 1
+        elif predict == 'change':
+            mutateSummary['predict']['actual']['change'] += 1
         #make sure s1 connects m0
         cnt = 0
         while (not self.checkS1ConnectsM0_Predict()) and cnt < 100000:
-            self.mutate_predict()
+            addProb = self.mutateProb*self._updateAddOperandProb()
+            delProb = self.mutateProb*(1-self._updateAddOperandProb())
+            changeProb = self.mutateProb*self._updateAddOperandProb()*(1-self._updateAddOperandProb())
+            mutateSummary['predict']['prob']['add'].append(addProb)
+            mutateSummary['predict']['prob']['del'].append(delProb)
+            mutateSummary['predict']['prob']['change'].append(changeProb)
+            predict = self.mutate_predict()
+            if predict is None: 
+                pass
+            elif predict == 'add':
+                mutateSummary['predict']['actual']['add'] += 1
+            elif predict == 'del':
+                mutateSummary['predict']['actual']['del'] += 1
+            elif predict == 'change':
+                mutateSummary['predict']['actual']['change'] += 1
+                
             cnt += 1
             if cnt >= 100000:
                 self.graph.addPredictOPs(len(self.graph.predictOPs), 's1', np.random.choice([34, 51, 55]), ['m0'])
                 break
                 #self.graph.show()
-                
-        self.mutate_update()
+        
+        
+        addProb = self.mutateProb*self._updateAddOperandProb()
+        delProb = self.mutateProb*(1-self._updateAddOperandProb())
+        changeProb = self.mutateProb*self._updateAddOperandProb()*(1-self._updateAddOperandProb())
+        mutateSummary['update']['prob']['add'].append(addProb)
+        mutateSummary['update']['prob']['del'].append(delProb)
+        mutateSummary['update']['prob']['change'].append(changeProb)
+        update = self.mutate_update()
+        if update is None: 
+            pass
+        elif update == 'add':
+            mutateSummary['update']['actual']['add'] += 1
+        elif update == 'del':
+            mutateSummary['update']['actual']['del'] += 1
+        elif update == 'change':
+            mutateSummary['update']['actual']['change'] += 1
         # make sure update steps includes s0 and s1
         cnt = 0
         while (not self.checkOperandsConnectS0S1_Update()) and cnt < 100:
-            self.mutate_update()
+            addProb = self.mutateProb*self._updateAddOperandProb()
+            delProb = self.mutateProb*(1-self._updateAddOperandProb())
+            changeProb = self.mutateProb*self._updateAddOperandProb()*(1-self._updateAddOperandProb())
+            mutateSummary['update']['prob']['add'].append(addProb)
+            mutateSummary['update']['prob']['del'].append(delProb)
+            mutateSummary['update']['prob']['change'].append(changeProb)
+            update = self.mutate_update()
+            if update is None: 
+                pass
+            elif update == 'add':
+                mutateSummary['update']['actual']['add'] += 1
+            elif update == 'del':
+                mutateSummary['update']['actual']['del'] += 1
+            elif update == 'change':
+                mutateSummary['update']['actual']['change'] += 1
             cnt += 1
             if cnt >= 100:
                 key = self.graph.addNodes(Scalar(0))
@@ -1089,7 +1174,24 @@ class Alpha():
             
         self.fillUndefinedOperands()
         #print('mutate done')
-    
+        
+        mutateSummary['predict']['prob']['add'] = sum(mutateSummary['predict']['prob']['add'])/len(mutateSummary['predict']['prob']['add'])
+        mutateSummary['predict']['prob']['del'] = sum(mutateSummary['predict']['prob']['del'])/len(mutateSummary['predict']['prob']['del'])
+        mutateSummary['predict']['prob']['change'] = sum(mutateSummary['predict']['prob']['change'])/len(mutateSummary['predict']['prob']['change'])
+        mutateSummary['update']['prob']['add'] = sum(mutateSummary['update']['prob']['add'])/len(mutateSummary['update']['prob']['add'])
+        mutateSummary['update']['prob']['del'] = sum(mutateSummary['update']['prob']['del'])/len(mutateSummary['update']['prob']['del'])
+        mutateSummary['update']['prob']['change'] = sum(mutateSummary['update']['prob']['change'])/len(mutateSummary['update']['prob']['change'])
+        return mutateSummary
+
+import random
+
+def weighted_choice(weights):
+    choice = random.random() * sum(weights)
+    for i, w in enumerate(weights):
+        choice -= w
+        if choice < 0:
+            return i
+        
 if __name__ == '__main__':
     a = Graph()
     

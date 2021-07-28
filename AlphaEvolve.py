@@ -21,7 +21,7 @@ from zipfile import ZipFile
 import os
 import requests
 import json
-np.seterr(divide='ignore', invalid='ignore')
+np.seterr(all="ignore") 
 class AlphaEvolve():
     '''
     Main class to run alpha evolve
@@ -211,7 +211,7 @@ class AlphaEvolve():
     '''
     def __init__(self, name = 'abc', mutateProb = 0.9, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 3,
                  trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxNumNodes: int = 200, maxLenShapeNode: int = 30,
-                 file: str = "may_premium_dataset_USDT.zip"):
+                 file: str = "may_premium_dataset_USDT.zip", addProb: float = 0.4, delProb: float = 0.3, changeProb: float = 0.3):
         '''
         Method used to initiate AlphaEvolve
 
@@ -258,13 +258,22 @@ class AlphaEvolve():
         self.trainRatio = trainRatio
         self.validRatio = validRatio
         
+        self.addProb = addProb
+        self.delProb = delProb
+        self.changeProb = changeProb
+        
         self.population = []
         self.fitnessScore = {}
         
         self.maxNumNodes = maxNumNodes
         self.maxLenShapeNode = maxLenShapeNode
         self.initiateAlpha(graph)
-    
+        
+        self.mutateSummary = []
+        self.fitnessSummary = []
+        self.sharpeSummary = []
+        
+        
     def checkTimeBudget(self):
         '''
         check whether continue evolving or not
@@ -291,7 +300,7 @@ class AlphaEvolve():
         None.
 
         '''
-        self.currAlpha = Alpha(graph, maxNumNodes = self.maxNumNodes, mutateProb = self.mutateProb, rf = 0.0001, maxLenShapeNode = self.maxLenShapeNode)
+        self.currAlpha = Alpha(graph, maxNumNodes = self.maxNumNodes, mutateProb = self.mutateProb, rf = 0.0001, maxLenShapeNode = self.maxLenShapeNode, addProb = self.addProb, delProb = self.delProb, changeProb = self.changeProb)
 
     def parallelNewMutate(self, alpha: Alpha):
         self.currAlpha = alpha
@@ -385,25 +394,173 @@ class AlphaEvolve():
     def createNewMutate(self):
         self.pickTournament()
         bestFit_1, alpha_1 = self.getBestFit(self.tournament)
-        bestFit_2, alpha_2 = self.getBestFit([alpha for alpha in self.tournament if alpha != alpha_1])
+        #bestFit_2, alpha_2 = self.getBestFit([alpha for alpha in self.tournament if alpha != alpha_1])
         newMutate = []
+        summary = {'setup': {'prob': {'add': [], 'del': [], 'change': []}, 
+                          'actual': {'add': 0, 'del': 0, 'change': 0}}, 
+                'predict': {'prob': {'add': [], 'del': [], 'change': []}, 
+                            'actual': {'add': 0, 'del': 0, 'change': 0}}, 
+                'update': {'prob': {'add': [], 'del': [], 'change': []}, 
+                           'actual': {'add': 0, 'del': 0, 'change': 0}}}
         for i in range(self.numNewAlphaPerMutation):
             while True:
                 try:
-                    if bestFit_2 <= 0:
-                        newAlpha = copy.deepcopy(alpha_1)
-                    elif np.random.binomial(1, bestFit_1/(bestFit_1 + bestFit_2)):
-                        newAlpha = self.combineAlphas(alpha_1, alpha_2)
-                    else:
-                        newAlpha = copy.deepcopy(alpha_1)
-                    
-                    newAlpha.mutate()
+                    #if bestFit_2 <= 0:
+                    #    newAlpha = copy.deepcopy(alpha_1)
+                    #elif np.random.binomial(1, bestFit_1/(bestFit_1 + bestFit_2)):
+                    #    newAlpha = self.combineAlphas(alpha_1, alpha_2)
+                    #else:
+                    #    newAlpha = copy.deepcopy(alpha_1)
+                    newAlpha = copy.deepcopy(alpha_1)
+                    mutateSummary = newAlpha.mutate()
                     newMutate.append(newAlpha)
+                    
+                    summary['setup']['prob']['add'].append(mutateSummary['setup']['prob']['add'])
+                    summary['setup']['prob']['del'].append(mutateSummary['setup']['prob']['del'])
+                    summary['setup']['prob']['change'].append(mutateSummary['setup']['prob']['change'])
+                    summary['setup']['actual']['add'] += mutateSummary['setup']['actual']['add']
+                    summary['setup']['actual']['del'] += mutateSummary['setup']['actual']['del']
+                    summary['setup']['actual']['change'] += mutateSummary['setup']['actual']['change']
+                    
+                    summary['predict']['prob']['add'].append(mutateSummary['predict']['prob']['add'])
+                    summary['predict']['prob']['del'].append(mutateSummary['predict']['prob']['del'])
+                    summary['predict']['prob']['change'].append(mutateSummary['predict']['prob']['change'])
+                    summary['predict']['actual']['add'] += mutateSummary['predict']['actual']['add']
+                    summary['predict']['actual']['del'] += mutateSummary['predict']['actual']['del']
+                    summary['predict']['actual']['change'] += mutateSummary['predict']['actual']['change']
+                    
+                    summary['update']['prob']['add'].append(mutateSummary['update']['prob']['add'])
+                    summary['update']['prob']['del'].append(mutateSummary['update']['prob']['del'])
+                    summary['update']['prob']['change'].append(mutateSummary['update']['prob']['change'])
+                    summary['update']['actual']['add'] += mutateSummary['update']['actual']['add']
+                    summary['update']['actual']['del'] += mutateSummary['update']['actual']['del']
+                    summary['update']['actual']['change'] += mutateSummary['update']['actual']['change']
                     break
                 except:
                     continue
-        return newMutate
         
+        summary['setup']['prob']['add'] = sum(summary['setup']['prob']['add'])/len(summary['setup']['prob']['add'])
+        summary['setup']['prob']['del'] = sum(summary['setup']['prob']['del'])/len(summary['setup']['prob']['del'])
+        summary['setup']['prob']['change'] = sum(summary['setup']['prob']['change'])/len(summary['setup']['prob']['change'])
+        
+        summary['predict']['prob']['add'] = sum(summary['predict']['prob']['add'])/len(summary['predict']['prob']['add'])
+        summary['predict']['prob']['del'] = sum(summary['predict']['prob']['del'])/len(summary['predict']['prob']['del'])
+        summary['predict']['prob']['change'] = sum(summary['predict']['prob']['change'])/len(summary['predict']['prob']['change'])
+        
+        summary['update']['prob']['add'] = sum(summary['update']['prob']['add'])/len(summary['update']['prob']['add'])
+        summary['update']['prob']['del'] = sum(summary['update']['prob']['del'])/len(summary['update']['prob']['del'])
+        summary['update']['prob']['change'] = sum(summary['update']['prob']['change'])/len(summary['update']['prob']['change'])
+        
+        self.mutateSummary.append(summary)
+        return newMutate
+    
+    def save_and_plot(self):
+        df = pd.DataFrame()
+        df['setup_prob_add'] = [mutateSummary['setup']['prob']['add'] for mutateSummary in self.mutateSummary]
+        df['setup_prob_del'] = [mutateSummary['setup']['prob']['del'] for mutateSummary in self.mutateSummary]
+        df['setup_prob_change'] = [mutateSummary['setup']['prob']['change'] for mutateSummary in self.mutateSummary]
+        df['setup_actual_add'] = [mutateSummary['setup']['actual']['add'] for mutateSummary in self.mutateSummary]
+        df['setup_actual_del'] = [mutateSummary['setup']['actual']['del'] for mutateSummary in self.mutateSummary]
+        df['setup_actual_change'] = [mutateSummary['setup']['actual']['change'] for mutateSummary in self.mutateSummary]
+        
+        df['predict_prob_add'] = [mutateSummary['predict']['prob']['add'] for mutateSummary in self.mutateSummary]
+        df['predict_prob_del'] = [mutateSummary['predict']['prob']['del'] for mutateSummary in self.mutateSummary]
+        df['predict_prob_change'] = [mutateSummary['predict']['prob']['change'] for mutateSummary in self.mutateSummary]
+        df['predict_actual_add'] = [mutateSummary['predict']['actual']['add'] for mutateSummary in self.mutateSummary]
+        df['predict_actual_del'] = [mutateSummary['predict']['actual']['del'] for mutateSummary in self.mutateSummary]
+        df['predict_actual_change'] = [mutateSummary['predict']['actual']['change'] for mutateSummary in self.mutateSummary]
+        
+        df['update_prob_add'] = [mutateSummary['update']['prob']['add'] for mutateSummary in self.mutateSummary]
+        df['update_prob_del'] = [mutateSummary['update']['prob']['del'] for mutateSummary in self.mutateSummary]
+        df['update_prob_change'] = [mutateSummary['update']['prob']['change'] for mutateSummary in self.mutateSummary]
+        df['update_actual_add'] = [mutateSummary['update']['actual']['add'] for mutateSummary in self.mutateSummary]
+        df['update_actual_del'] = [mutateSummary['update']['actual']['del'] for mutateSummary in self.mutateSummary]
+        df['update_actual_change'] = [mutateSummary['update']['actual']['change'] for mutateSummary in self.mutateSummary]
+        
+        df.to_csv('mutateSummary.csv')
+        
+        plt.figure(figsize = (10,8))
+        plt.plot(df['setup_prob_add'], label = 'mutation by adding')
+        plt.plot(df['setup_prob_del'], label = 'mutation by removing')
+        plt.plot(df['setup_prob_change'], label = 'mutation by changing')
+        plt.title('Setup Probability')
+        plt.legend()
+        plt.show()
+        
+        
+        plt.figure(figsize = (10,8))
+        plt.plot(df['setup_actual_add'], label = 'mutation by adding')
+        plt.plot(df['setup_actual_del'], label = 'mutation by removing')
+        plt.plot(df['setup_actual_change'], label = 'mutation by changing')
+        plt.title('Setup Actual')
+        plt.legend()
+        plt.show()
+        
+        
+        plt.figure(figsize = (10,8))
+        plt.plot(df['predict_prob_add'], label = 'mutation by adding')
+        plt.plot(df['predict_prob_del'], label = 'mutation by removing')
+        plt.plot(df['predict_prob_change'], label = 'mutation by changing')
+        plt.title('Predict Probability')
+        plt.legend()
+        plt.show()
+        
+        
+        plt.figure(figsize = (10,8))
+        plt.plot(df['predict_actual_add'], label = 'mutation by adding')
+        plt.plot(df['predict_actual_del'], label = 'mutation by removing')
+        plt.plot(df['predict_actual_change'], label = 'mutation by changing')
+        plt.title('Predict Actual')
+        plt.legend()
+        plt.show()
+        
+        
+        plt.figure(figsize = (10,8))
+        plt.plot(df['update_prob_add'], label = 'mutation by adding')
+        plt.plot(df['update_prob_del'], label = 'mutation by removing')
+        plt.plot(df['update_prob_change'], label = 'mutation by changing')
+        plt.title('Update Probability')
+        plt.legend()
+        plt.show()
+        
+        
+        plt.figure(figsize = (10,8))
+        plt.plot(df['update_actual_add'], label = 'mutation by adding')
+        plt.plot(df['update_actual_del'], label = 'mutation by removing')
+        plt.plot(df['update_actual_change'], label = 'mutation by changing')
+        plt.title('Update Actual')
+        plt.legend()
+        plt.show()
+        
+        
+        
+        df1 = pd.DataFrame()
+        df1['maxFit'] = [x[0] for x in self.fitnessSummary]
+        df1['aveFit'] = [x[1] for x in self.fitnessSummary]
+        df1['minFit'] = [x[2] for x in self.fitnessSummary]
+        
+        df1['maxSharpe'] = [x[0] for x in self.sharpeSummary]
+        df1['aveSharpe'] = [x[1] for x in self.sharpeSummary]
+        df1['minSharpe'] = [x[2] for x in self.sharpeSummary]
+        
+        df1.to_csv('evolve summary.csv')
+        
+        plt.figure(figsize = (10,8))
+        plt.plot(df1['maxFit'], label = 'max')
+        plt.plot(df1['aveFit'], label = 'ave')
+        plt.plot(df1['minFit'], label = 'min')
+        plt.title('Fitness Score')
+        plt.legend()
+        plt.show()
+        
+        plt.figure(figsize = (10,8))
+        plt.plot(df1['maxSharpe'], label = 'max')
+        plt.plot(df1['aveSharpe'], label = 'ave')
+        plt.plot(df1['minSharpe'], label = 'min')
+        plt.title('Sharpes')
+        plt.legend()
+        plt.show()
+    
     def run(self):
         '''
         Evolving Method
@@ -434,7 +591,7 @@ class AlphaEvolve():
             for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues in pool.imap(self.parallelNewMutate, newMutate):
                 if fingerPrint in self.fitnessScore:
                     pass
-                elif fitnessScore <= 0 and np.corrcoef(dailyReturns, self.bestFit[2])[0,1] < 0.7:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
+                elif (fitnessScore > -1): #and np.corrcoef(dailyReturns, self.bestFit[2])[0,1] < 0.7:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
                     validAlpha.append(
                         [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues])
                 
@@ -447,6 +604,14 @@ class AlphaEvolve():
             if validAlpha == []:
                 print('continue')
                 continue
+            maxFit = max([x[1] for x in validAlpha])
+            minFit = min([x[1] for x in validAlpha])
+            aveFit = sum([x[1] for x in validAlpha])/len([x[1] for x in validAlpha])
+            maxSharpe = max([x[4] for x in validAlpha])
+            minSharpe = min([x[4] for x in validAlpha])
+            aveSharpe = sum([x[4] for x in validAlpha])/len([x[4] for x in validAlpha])
+            self.fitnessSummary.append((maxFit, aveFit, minFit))
+            self.sharpeSummary.append((maxSharpe, aveSharpe, minSharpe))
             
             #sort new mutated alphas by decreasing order of fitness
             newAlphaInfo = sorted(validAlpha, key = lambda x: x[1], reverse = True)[0]
@@ -478,7 +643,8 @@ class AlphaEvolve():
             #summary best fit alpha ever
             self.summaryBestFit()
         
-        self.extractAlpha(self.name)
+        self.save_and_plot()
+        #self.extractAlpha(self.name)
         
     def importData(self):
         '''
@@ -634,7 +800,6 @@ class AlphaEvolve():
         fingerPrint = self.fingerprint()
 
         return alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues
-
 
     def runFirstPopulation(self):
         '''
@@ -805,17 +970,17 @@ class AlphaEvolve():
             fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
             validPrediction.append(self.OperandsValues['s1'].copy())
             validActual.append(self.OperandsValues['s0'].copy())
-        fitnessScore = sum(fitnessScore)/len(fitnessScore)/np.std(fitnessScore)
+        fitnessScore = sum(fitnessScore)/len(fitnessScore)#/np.std(fitnessScore)
         #if fitness score is nan -> s1 is constance -> set fitness score to the lowest value possible
         if np.isnan(fitnessScore): fitnessScore = -1
         try:
             for i in range(len(self.symbolList)):
                 MIScore.append(calc_MI([validPrediction[j][i] for j in range(len(validPrediction))], [validActual[j][i] for j in range(len(validActual))]))
-        
+                
             MIScore = sum(MIScore)/len(MIScore)
         except: MIScore = 0
         
-        return MIScore, np.array(validPrediction, dtype = np.float32), np.array(validActual, dtype = np.float32)
+        return fitnessScore, np.array(validPrediction, dtype = np.float32), np.array(validActual, dtype = np.float32)
         
     def test(self):
         '''
@@ -839,7 +1004,7 @@ class AlphaEvolve():
             testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
             testPrediction.append(self.OperandsValues['s1'].copy())
             testActual.append(self.OperandsValues['s0'].copy())
-        testScore = sum(testScore)/len(testScore)/np.std(testScore)
+        testScore = sum(testScore)/len(testScore)#/np.std(testScore)
         #if test score is nan -> s1 is constance -> set test score to the lowest value possible
         if np.isnan(testScore): testScore = -1
         try:
@@ -849,7 +1014,7 @@ class AlphaEvolve():
             MIScore = sum(MIScore)/len(MIScore)
         except: MIScore = 0
         
-        return  MIScore, np.array(testPrediction, dtype = np.float32), np.array(testActual, dtype = np.float32)
+        return  testScore, np.array(testPrediction, dtype = np.float32), np.array(testActual, dtype = np.float32)
     
     def setup(self):
         '''
@@ -2190,7 +2355,7 @@ def calc_MI(x, y):
         g, p, dof, expected = chi2_contingency(c_xy, lambda_="log-likelihood")
         mi = 0.5 * g / c_xy.sum()
         
-        mi /= np.linalg.norm(np.array(x)-np.array(y))
+        #mi /= np.linalg.norm(np.array(x)-np.array(y))
     except:
         mi = 0
     return mi

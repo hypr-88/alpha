@@ -1,6 +1,24 @@
 from AlphaEvolve import AlphaEvolve
 
 if __name__ == '__main__':
-    ## frequency : '5min', '15min', '1H', '4H', '1D', '1W', '2W', '1M'
-    x = AlphaEvolve(name = '4symbols_004', mutateProb = 0.6, population = 50, tournament = 10, window = 30, numNewAlphaPerMutation = 50, trainRatio = 0.7, validRatio = 0.15, maxNumNodes = 10000, maxLenShapeNode = 50)
+    '''
+    name: name of alpha that will be saved on the server to backtest on the terminal
+    mutateProb: probability to mutate. If Binomial(1, mutateProb) = 0, then it does not mutate setup/predict/update
+    population: length of population
+    tournament: length of tournament
+    window: length of input matrix
+    numNewAlphaPerMutation: number of alphas mutated every step
+    trainRatio: ratio of training data in dataset
+    validRatio: ratio of test data in dataset
+    TimeBudget: (Days, Hours, Minutes, Seconds)
+    maxNumNodes: maximum number of nodes in each graph
+    maxLenShapeNode: maximum length of every vector or matrix
+    addProb: probability of mutation by adding
+    delProb: probability of mutation by removing
+    changeProb: probability of mutation by changing
+    '''
+    
+    x = AlphaEvolve(name = '4symbols_004', mutateProb = 0.9, population = 100, tournament = 10, window = 30, 
+                    numNewAlphaPerMutation = 50, trainRatio = 0.7, validRatio = 0.15, TimeBudget = (1, 0, 0, 0), 
+                    maxNumNodes = 500, maxLenShapeNode = 50, addProb = 0.4, delProb = 0.3, changeProb = 0.3)
     x.run()

@@ -86,7 +86,7 @@ def backtest(returns: np.ndarray, Prediction: np.ndarray, show: bool = True, pct
         
         #anualized returns and standard deviation
         annualizedReturns = cumulativeReturns/len(returns.index)*365
-        annualizedSTD = std*np.sqrt(365/len(returns.index))
+        annualizedSTD = std*np.sqrt(365)
         
         #sharpe ratio
         sharpe = (annualizedReturns - rf)/annualizedSTD

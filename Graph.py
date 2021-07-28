@@ -1,7 +1,7 @@
 from Operands import Scalar, Vector, Matrix
 import copy
 import numpy as np
-np.seterr(divide='ignore', invalid='ignore')
+np.seterr(all="ignore") 
 
 class Error(Exception):
     def __init__(self, m):
