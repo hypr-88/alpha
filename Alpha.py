@@ -383,10 +383,10 @@ class Alpha():
                         operation = [None, None, None]
                         while not valid and count<1000: #loops until selecting a valid operation
                             op = toScalarOp[np.random.randint(len(toScalarOp))]
-                            if op in [1,2,3,4,44,47]: #scalar + scalar -> scalar
+                            if op in [1,2,3,4,44,47] and len(ScalarList)>=2: #scalar + scalar -> scalar
                                 node1, node2 = np.random.choice(ScalarList, size = 2)
                                 operation = [key, op, [node1, node2]]
-                            if op in [5,6,7,8,9,10,11,12,13,14,15,65,66,67]: #scalar -> scalar
+                            if op in [5,6,7,8,9,10,11,12,13,14,15,65,66,67] and len(ScalarList)>=1: #scalar -> scalar
                                 node = np.random.choice(ScalarList, size = 1)
                                 operation = [key, op, [node]]
                             if op in [21,50,54] and len(VectorList) >= 1: # vector -> scalar
@@ -395,7 +395,7 @@ class Alpha():
                             if op == 27 and len(VectorList) >= 2: #vector + vector -> scalar
                                 node1, node2 = np.random.choice(VectorList, size = 2)
                                 operation = [key, op, [node1, node2]]
-                            if op in [34,51,55]: #matrix -> scalar
+                            if op in [34,51,55] and len(MatrixList)>=1: #matrix -> scalar
                                 node = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node]]
                                 
@@ -416,7 +416,7 @@ class Alpha():
                                 node1 = np.random.choice(ScalarList, size = 1)
                                 node2 = np.random.choice(VectorList, size = 1)
                                 operation = [key, op, [node1, node2]]
-                            if op == 19: #scalar + int -> vector
+                            if op == 19 and len(ScalarList)>=1: #scalar + int -> vector
                                 node = np.random.choice(ScalarList, size = 1)
                                 i = np.random.randint(2,self.maxLenShapeNode)
                                 operation = [key, op, [node, i]]
@@ -427,7 +427,7 @@ class Alpha():
                                 node1 = np.random.choice(MatrixList, size = 1)
                                 node2 = np.random.choice(VectorList, size = 1)
                                 operation = [key, op, [node1, node2]]
-                            if op in [35,36,52,53]: #matrix -> vector
+                            if op in [35,36,52,53] and len(MatrixList)>=1: #matrix -> vector
                                 node = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node]]
                                 
@@ -441,13 +441,13 @@ class Alpha():
                         operation = [None, None, None]
                         while not valid and count<100: #loops until selecting a valid operation
                             op = toMatrixOp[np.random.randint(len(toMatrixOp))]
-                            if op in [17, 30, 37, 38]: #matrix -> matrix
+                            if op in [17, 30, 37, 38] and len(MatrixList)>=1: #matrix -> matrix
                                 node = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node]]
                             if op == 28 and len(VectorList)>=2: #vector + vector -> matrix
                                 node1, node2 = np.random.choice(VectorList, size = 2, replace = False)
                                 operation = [key, op, [node1, node2]]
-                            if op == 29: #scalar + matrix -> matrix
+                            if op == 29 and len(MatrixList)>=1 and len(ScalarList)>=1: #scalar + matrix -> matrix
                                 node1 = np.random.choice(ScalarList, size = 1)
                                 node2 = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node1, node2]]
@@ -531,10 +531,10 @@ class Alpha():
                     operation = [None, None, None]
                     while not valid and count<100: #loops until selecting a valid operation
                         op = toScalarOp[np.random.randint(len(toScalarOp))]
-                        if op in [1,2,3,4,44,47]: #scalar + scalar -> scalar
+                        if op in [1,2,3,4,44,47] and len(ScalarList)>=2: #scalar + scalar -> scalar
                             node1, node2 = np.random.choice(ScalarList, size = 2)
                             operation = [key, op, [node1, node2]]
-                        if op in [5,6,7,8,9,10,11,12,13,14,15,65,66,67]: #scalar -> scalar
+                        if op in [5,6,7,8,9,10,11,12,13,14,15,65,66,67] and len(ScalarList)>=1: #scalar -> scalar
                             node = np.random.choice(ScalarList, size = 1)
                             operation = [key, op, [node]]
                         if op in [21,50,54] and len(VectorList) >= 1: # vector -> scalar
@@ -543,7 +543,7 @@ class Alpha():
                         if op == 27 and len(VectorList) >= 2: #vector + vector -> scalar
                             node1, node2 = np.random.choice(VectorList, size = 2)
                             operation = [key, op, [node1, node2]]
-                        if op in [34,51,55]: #matrix -> scalar
+                        if op in [34,51,55] and len(MatrixList)>=1: #matrix -> scalar
                             node = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node]]
                             
@@ -563,7 +563,7 @@ class Alpha():
                             node1 = np.random.choice(ScalarList, size = 1)
                             node2 = np.random.choice(VectorList, size = 1)
                             operation = [key, op, [node1, node2]]
-                        if op == 19: #scalar + int -> vector
+                        if op == 19 and len(ScalarList)>=1: #scalar + int -> vector
                             node = np.random.choice(ScalarList, size = 1)
                             i = np.random.randint(2,self.maxLenShapeNode)
                             operation = [key, op, [node, i]]
@@ -574,7 +574,7 @@ class Alpha():
                             node1 = np.random.choice(MatrixList, size = 1)
                             node2 = np.random.choice(VectorList, size = 1)
                             operation = [key, op, [node1, node2]]
-                        if op in [35,36,52,53]: #matrix -> vector
+                        if op in [35,36,52,53] and len(MatrixList)>=1: #matrix -> vector
                             node = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node]]
                             
@@ -587,13 +587,13 @@ class Alpha():
                     operation = [None, None, None]
                     while not valid and count<1000: #loops until selecting a valid operation
                         op = toMatrixOp[np.random.randint(len(toMatrixOp))]
-                        if op in [17, 30, 37, 38]: #matrix -> matrix
+                        if op in [17, 30, 37, 38] and len(MatrixList)>=1: #matrix -> matrix
                             node = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node]]
                         if op == 28 and len(VectorList)>=2: #vector + vector -> matrix
                             node1, node2 = np.random.choice(VectorList, size = 2, replace = False)
                             operation = [key, op, [node1, node2]]
-                        if op == 29: #scalar + matrix -> matrix
+                        if op == 29 and len(MatrixList)>=1 and len(ScalarList)>=1: #scalar + matrix -> matrix
                             node1 = np.random.choice(ScalarList, size = 1)
                             node2 = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node1, node2]]
@@ -721,10 +721,10 @@ class Alpha():
                         operation = [None, None, None]
                         while not valid and count<1000: #loops until selecting a valid operation
                             op = toScalarOp[np.random.randint(len(toScalarOp))]
-                            if op in [1,2,3,4,44,47]: #scalar + scalar -> scalar
+                            if op in [1,2,3,4,44,47] and len(ScalarList)>=2: #scalar + scalar -> scalar
                                 node1, node2 = np.random.choice(ScalarList, size = 2)
                                 operation = [key, op, [node1, node2]]
-                            if op in [5,6,7,8,9,10,11,12,13,14,15,65,66,67]: #scalar -> scalar
+                            if op in [5,6,7,8,9,10,11,12,13,14,15,65,66,67] and len(ScalarList)>=1: #scalar -> scalar
                                 node = np.random.choice(ScalarList, size = 1)
                                 operation = [key, op, [node]]
                             if op in [21,50,54] and len(VectorList) >= 1: # vector -> scalar
@@ -733,7 +733,7 @@ class Alpha():
                             if op == 27 and len(VectorList) >= 2: #vector + vector -> scalar
                                 node1, node2 = np.random.choice(VectorList, size = 2)
                                 operation = [key, op, [node1, node2]]
-                            if op in [34,51,55]: #matrix -> scalar
+                            if op in [34,51,55] and len(MatrixList)>=1: #matrix -> scalar
                                 node = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node]]
                                 
@@ -754,7 +754,7 @@ class Alpha():
                                 node1 = np.random.choice(ScalarList, size = 1)
                                 node2 = np.random.choice(VectorList, size = 1)
                                 operation = [key, op, [node1, node2]]
-                            if op == 19: #scalar + int -> vector
+                            if op == 19 and len(ScalarList)>=1: #scalar + int -> vector
                                 node = np.random.choice(ScalarList, size = 1)
                                 i = np.random.randint(2,self.maxLenShapeNode)
                                 operation = [key, op, [node, i]]
@@ -765,7 +765,7 @@ class Alpha():
                                 node1 = np.random.choice(MatrixList, size = 1)
                                 node2 = np.random.choice(VectorList, size = 1)
                                 operation = [key, op, [node1, node2]]
-                            if op in [35,36,52,53]: #matrix -> vector
+                            if op in [35,36,52,53] and len(MatrixList)>=1: #matrix -> vector
                                 node = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node]]
                                 
@@ -779,13 +779,13 @@ class Alpha():
                         operation = [None, None, None]
                         while not valid and count<100: #loops until selecting a valid operation
                             op = toMatrixOp[np.random.randint(len(toMatrixOp))]
-                            if op in [17, 30, 37, 38]: #matrix -> matrix
+                            if op in [17, 30, 37, 38] and len(MatrixList)>=1: #matrix -> matrix
                                 node = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node]]
                             if op == 28 and len(VectorList)>=2: #vector + vector -> matrix
                                 node1, node2 = np.random.choice(VectorList, size = 2, replace = False)
                                 operation = [key, op, [node1, node2]]
-                            if op == 29: #scalar + matrix -> matrix
+                            if op == 29 and len(MatrixList)>=1 and len(ScalarList)>=1: #scalar + matrix -> matrix
                                 node1 = np.random.choice(ScalarList, size = 1)
                                 node2 = np.random.choice(MatrixList, size = 1)
                                 operation = [key, op, [node1, node2]]
@@ -868,10 +868,10 @@ class Alpha():
                     operation = [None, None, None]
                     while not valid and count<100: #loops until selecting a valid operation
                         op = toScalarOp[np.random.randint(len(toScalarOp))]
-                        if op in [1,2,3,4,44,47]: #scalar + scalar -> scalar
+                        if op in [1,2,3,4,44,47] and len(ScalarList)>=2: #scalar + scalar -> scalar
                             node1, node2 = np.random.choice(ScalarList, size = 2)
                             operation = [key, op, [node1, node2]]
-                        if op in [5,6,7,8,9,10,11,12,13,14,15,65,66,67]: #scalar -> scalar
+                        if op in [5,6,7,8,9,10,11,12,13,14,15,65,66,67] and len(ScalarList)>=1: #scalar -> scalar
                             node = np.random.choice(ScalarList, size = 1)
                             operation = [key, op, [node]]
                         if op in [21,50,54] and len(VectorList) >= 1: # vector -> scalar
@@ -880,7 +880,7 @@ class Alpha():
                         if op == 27 and len(VectorList) >= 2: #vector + vector -> scalar
                             node1, node2 = np.random.choice(VectorList, size = 2)
                             operation = [key, op, [node1, node2]]
-                        if op in [34,51,55]: #matrix -> scalar
+                        if op in [34,51,55] and len(MatrixList)>=1: #matrix -> scalar
                             node = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node]]
                             
@@ -900,7 +900,7 @@ class Alpha():
                             node1 = np.random.choice(ScalarList, size = 1)
                             node2 = np.random.choice(VectorList, size = 1)
                             operation = [key, op, [node1, node2]]
-                        if op == 19: #scalar + int -> vector
+                        if op == 19 and len(ScalarList)>=1: #scalar + int -> vector
                             node = np.random.choice(ScalarList, size = 1)
                             i = np.random.randint(2,self.maxLenShapeNode)
                             operation = [key, op, [node, i]]
@@ -911,7 +911,7 @@ class Alpha():
                             node1 = np.random.choice(MatrixList, size = 1)
                             node2 = np.random.choice(VectorList, size = 1)
                             operation = [key, op, [node1, node2]]
-                        if op in [35,36,52,53]: #matrix -> vector
+                        if op in [35,36,52,53] and len(MatrixList)>=1: #matrix -> vector
                             node = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node]]
                             
@@ -924,13 +924,13 @@ class Alpha():
                     operation = [None, None, None]
                     while not valid and count<1000: #loops until selecting a valid operation
                         op = toMatrixOp[np.random.randint(len(toMatrixOp))]
-                        if op in [17, 30, 37, 38]: #matrix -> matrix
+                        if op in [17, 30, 37, 38] and len(MatrixList)>=1: #matrix -> matrix
                             node = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node]]
                         if op == 28 and len(VectorList)>=2: #vector + vector -> matrix
                             node1, node2 = np.random.choice(VectorList, size = 2, replace = False)
                             operation = [key, op, [node1, node2]]
-                        if op == 29: #scalar + matrix -> matrix
+                        if op == 29 and len(MatrixList)>=1 and len(ScalarList)>=1: #scalar + matrix -> matrix
                             node1 = np.random.choice(ScalarList, size = 1)
                             node2 = np.random.choice(MatrixList, size = 1)
                             operation = [key, op, [node1, node2]]
