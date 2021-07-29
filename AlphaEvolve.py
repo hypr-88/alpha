@@ -580,6 +580,7 @@ class AlphaEvolve():
         self.initiatePopulation()
         self.runFirstPopulation()
         self.summaryBestFit()
+        cnt = 0
         while self.checkTimeBudget():
             newMutate = self.createNewMutate()
             
@@ -642,8 +643,10 @@ class AlphaEvolve():
             
             #summary best fit alpha ever
             self.summaryBestFit()
-        
-        self.save_and_plot()
+            
+            cnt+=1
+            if cnt%20 == 0:
+                self.save_and_plot()
         #self.extractAlpha(self.name)
         
     def importData(self):
