@@ -208,7 +208,7 @@ class AlphaEvolve():
     run()
         run the alpha evolve
     '''
-    def __init__(self, name = 'abc', mutateProb = 0.9, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 3,
+    def __init__(self, data: dict[str, pd.DataFrame], featureList: [str] = ['open', 'high', 'low', 'close', 'volume'], name = 'abc', mutateProb = 0.9, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 3,
                  trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxNumNodes: int = 200, maxLenShapeNode: int = 30,
                  file: str = "may_premium_dataset_USDT.zip"):
         '''
@@ -238,6 +238,10 @@ class AlphaEvolve():
         None.
 
         '''
+        print("Init Alpha Evolve...")
+        self.data = data
+        self.symbolList = list(self.data.keys())
+        self.featuresList = featureList
         self.name = name
         self.mutateProb = mutateProb
         
@@ -262,6 +266,11 @@ class AlphaEvolve():
         
         self.maxNumNodes = maxNumNodes
         self.maxLenShapeNode = maxLenShapeNode
+
+        for df in data.values():
+            self.dataLength = len(df)
+            break
+
         self.initiateAlpha(graph)
     
     def checkTimeBudget(self):
@@ -413,8 +422,7 @@ class AlphaEvolve():
 
         '''
         #import data
-        self.importData()
-        self.preparedData()
+        print("Running Alpha Evolve...")
         self.trainLength = round(self.dataLength * self.trainRatio)
         self.validLength = round(self.dataLength * self.validRatio)
         
