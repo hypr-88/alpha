@@ -298,6 +298,9 @@ class Graph():
         for op in self.predictOPs.copy():
             if op[0] in predict:
                 self.predictOPs.remove(predict[op[0]])
+            if op[0] in setup:
+                self.setupOPs.remove(setup[op[0]])
+                del setup[op[0]]
             predict[op[0]] = op
         
         update = {}
@@ -305,6 +308,12 @@ class Graph():
             if op[0] in {'s0', 's1'}:
                 self.updateOPs.remove(op)
                 continue
+            if op[0] in setup:
+                self.setupOPs.remove(setup[op[0]])
+                del setup[op[0]]
+            if op[0] in predict:
+                self.predictOPs.remove(predict[op[0]])
+                del predict[op[0]]
             if op[0] in update:
                 self.updateOPs.remove(update[op[0]])
             update[op[0]] = op

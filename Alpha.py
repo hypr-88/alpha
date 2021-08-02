@@ -1109,7 +1109,7 @@ class Alpha():
             mutateSummary['predict']['actual']['change'] += 1
         #make sure s1 connects m0
         cnt = 0
-        while (not self.checkS1ConnectsM0_Predict()) and cnt < 100000:
+        while (not self.checkS1ConnectsM0_Predict()) and cnt < 1000:
             addProb = self.mutateProb*self._updateAddOperandProb()
             delProb = self.mutateProb*(1-self._updateAddOperandProb())
             changeProb = self.mutateProb*self._updateAddOperandProb()*(1-self._updateAddOperandProb())
@@ -1127,7 +1127,7 @@ class Alpha():
                 mutateSummary['predict']['actual']['change'] += 1
                 
             cnt += 1
-            if cnt >= 100000:
+            if cnt >= 1000:
                 self.graph.addPredictOPs(len(self.graph.predictOPs), 's1', np.random.choice([34, 51, 55]), ['m0'])
                 break
                 #self.graph.show()
