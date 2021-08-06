@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import chi2_contingency
 from scipy.stats import rankdata
+from sklearn.preprocessing import MinMaxScaler
 
 import copy
 from Operands import Scalar, Vector, Matrix
@@ -575,6 +576,7 @@ class AlphaEvolve():
         self.preparedData()
         self.trainLength = round(self.dataLength * self.trainRatio)
         self.validLength = round(self.dataLength * self.validRatio)
+        self.transformData()
         
         #initiate 1st population
         self.initiatePopulation()
@@ -695,6 +697,9 @@ class AlphaEvolve():
                     new_df['close'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['close'].last()
                     new_df['volume'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['volume'].sum()
                     
+                    df['vol x close'] = df['close']*df['volume']
+                    new_df['VWAP'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['vol x close'].sum()/new_df['volume']
+            
                     #drop nan
                     new_df.dropna(inplace = True)
                     
@@ -722,20 +727,31 @@ class AlphaEvolve():
         None.
 
         '''
-        self.featuresList = ['open', 'high', 'low', 'close', 'volume', 'EMA5', 'EMA10', 'EMA20', 'EMA30', 'STD5', 'STD10', 'STD20', 'STD30']
+        self.featuresList = ['open', 'high', 'low', 'close', 'volume', 'VWAP', 'open_return', 'high_return', 'low_return', 'close_return', 
+                             'log volume', 'log volatility', 'open-close', 'log high-low', 'EMA5', 'EMA10', 'EMA20', 'EMA30', 'STD5', 'STD10', 'STD20', 'STD30', 
+                             'BB high', 'BB mid', 'BB low', 'MACD fast', 'MACD slow', 'MACD']
             
         for symbol in self.symbolList:
             # features
             df = self.data[symbol]
+            df['open_return'] = df['open']/df['open'].shift(1) - 1
+            df['high_return'] = df['high']/df['high'].shift(1) - 1
+            df['low_return'] = df['low']/df['low'].shift(1) - 1
+            df['close_return'] = df['close']/df['close'].shift(1) - 1
+            df['log volume'] = np.log(df['volume'])
+            df['log volatility'] = Volatility(df['close_return'].iloc[1:])
+            df['log high-low'] = np.log(df['high'] - df['low'])
+            df['open-close'] = (df['open'] - df['close'])
             df['EMA5'] = EMA(df['close'], 5)
             df['EMA10'] = EMA(df['close'], 10)
             df['EMA20'] = EMA(df['close'], 20)
             df['EMA30'] = EMA(df['close'], 30)
-            df['STD5'] = ESTD(df['close'], 5)
-            df['STD10'] = ESTD(df['close'], 10)
-            df['STD20'] = ESTD(df['close'], 20)
-            df['STD30'] = ESTD(df['close'], 30)
-            df['return'] = df['close']/df['close'].shift(1) - 1
+            df['STD5'] = ESTD(df['close_return'], 5)
+            df['STD10'] = ESTD(df['close_return'], 10)
+            df['STD20'] = ESTD(df['close_return'], 20)
+            df['STD30'] = ESTD(df['close_return'], 30)
+            df['BB high'], df['BB mid'], df['BB low'] = BBANDS(df['close'], 20, 2, 2)
+            df['MACD fast'], df['MACD slow'], df['MACD'] = MACD(df['close'], 12, 26, 9)
             
             #normalize
             #for col in self.featuresList:
@@ -743,7 +759,21 @@ class AlphaEvolve():
             #remove nan
             df.dropna(inplace = True)
             self.dataLength = len(df)
-    
+    def transformData(self):
+        self.scaler = []
+        self.transformedData = {}
+        for symbol in self.symbolList:
+            X = self.data[symbol].iloc[:-1,:]
+            y = np.array(self.data[symbol]['close_return'].iloc[1:]).reshape(-1, 1)
+            scaler_features = MinMaxScaler(feature_range=(-1, 1))
+            scaler_label = MinMaxScaler(feature_range=(-1, 1))
+            scaler_features.fit(X)
+            scaler_label.fit(y)
+            transform_features = scaler_features.transform(X)
+            transform_label = scaler_label.transform(y)
+            self.transformedData[symbol] = transform_features, transform_label
+            self.scaler.append((scaler_features, scaler_label))
+        
     def createWindow(self, symbol: str, i: int):
         '''
         get the window input and actual return output of symbol on date i-th
@@ -763,13 +793,9 @@ class AlphaEvolve():
         if i<self.window:
             return None
         else:
-            X = self.data[symbol][self.featuresList].iloc[:i]
-            #normalize
-            for col in self.featuresList:
-                X[col] /= X[col].max(skipna = True)
-            
-            X = X.iloc[-self.window:]
-            y = self.data[symbol]['return'].iloc[i]
+            transform_features, transform_label = self.transformedData[symbol]
+            X = transform_features[i-self.window:i]
+            y = transform_label[i]
             return np.array(X, dtype = np.float32), np.array(y, dtype = np.float32)
 
     def initiatePopulation(self):
@@ -1137,10 +1163,10 @@ class AlphaEvolve():
             self.currAlpha.graph.show()
             print('VALIDATION FITNESS:', fitnessScore)
             print('TEST FITNESS      :', testScore)
-            dailyReturns, annualizedReturns, sharpe = backtest(testActual, testPrediction, show)
+            dailyReturns, annualizedReturns, sharpe = backtest(self.scaler, testActual, testPrediction, show)
             print('========================================')
         else:
-            dailyReturns, annualizedReturns, sharpe = backtest(testActual, testPrediction, show)
+            dailyReturns, annualizedReturns, sharpe = backtest(self.scaler, testActual, testPrediction, show)
         return fitnessScore, dailyReturns, annualizedReturns, sharpe    
     
     def summaryBestFit(self):
