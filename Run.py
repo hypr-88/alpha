@@ -20,5 +20,5 @@ if __name__ == '__main__':
     
     x = AlphaEvolve(name = '4symbols_004', mutateProb = 0.9, population = 50, tournament = 10, window = 30, 
                     numNewAlphaPerMutation = 15, trainRatio = 0.7, validRatio = 0.15, TimeBudget = (2, 0, 0, 0), 
-                    maxNumNodes = 500, maxLenShapeNode = 50, addProb = 0.3, delProb = 0.2, changeProb = 0.5)
+                    maxNumNodes = 500, maxLenShapeNode = 50, addProb = 0.5, delProb = 0.2, changeProb = 0.3)
     x.run()

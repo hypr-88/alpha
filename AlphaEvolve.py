@@ -1000,6 +1000,7 @@ class AlphaEvolve():
             self.addM0(i)
             self.predict()
             self.addS0(i)
+            assert len(self.OperandsValues['s1']) == len(self.OperandsValues['s0']) == len(self.symbolList)
             fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
             validPrediction.append(self.OperandsValues['s1'].copy())
             validActual.append(self.OperandsValues['s0'].copy())
@@ -1034,6 +1035,7 @@ class AlphaEvolve():
             self.addM0(i)
             self.predict()
             self.addS0(i)
+            assert len(self.OperandsValues['s1']) == len(self.OperandsValues['s0']) == len(self.symbolList)
             testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
             testPrediction.append(self.OperandsValues['s1'].copy())
             testActual.append(self.OperandsValues['s0'].copy())
@@ -1164,7 +1166,10 @@ class AlphaEvolve():
         for i, symbol in enumerate(self.symbolList):
             scaler_label = self.scaler[i][1]
             returns[:, i] = scaler_label.inverse_transform(np.array(testActual[:, i]).reshape(-1, 1)).reshape(testActual.shape[0],)
-            Prediction[:, i] = scaler_label.inverse_transform(np.array(testPrediction[:, i]).reshape(-1, 1)).reshape(testPrediction.shape[0],)
+            try:
+                Prediction[:, i] = scaler_label.inverse_transform(np.array(testPrediction[:, i]).reshape(-1, 1)).reshape(testPrediction.shape[0],)
+            except:
+                Prediction = testPrediction
             #check invert transform correct or not
             assert (returns[:, i] - np.array(self.data[symbol]['close_return'].iloc[self.trainLength + self.validLength+1:self.dataLength]).reshape(testPrediction.shape[0],) < 0.00001).all()
         if show:

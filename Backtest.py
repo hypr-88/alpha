@@ -40,7 +40,7 @@ def backtest(returns: np.ndarray, Prediction: np.ndarray, show: bool = True, pct
     # make sure the shape of actual and predict returns are the same.
     if returns.shape == Prediction.shape:
         # the total numbers of symbols
-        noSymbol = returns.shape[0]
+        noSymbol = returns.shape[1]
          
         #convert actual and predict returns to DataFrame
         returns = pd.DataFrame(returns)
