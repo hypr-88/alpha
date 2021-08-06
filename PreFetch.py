@@ -33,6 +33,8 @@ def _importData(startTime: datetime, endTime: datetime, frequency: str = '1D',
                 new_df['low'] = df.groupby(pd.Grouper(key='time', freq=frequency))['low'].min()
                 new_df['close'] = df.groupby(pd.Grouper(key='time', freq=frequency))['close'].last()
                 new_df['volume'] = df.groupby(pd.Grouper(key='time', freq=frequency))['volume'].sum()
+                df['vol x close'] = df['close'] * df['volume']
+                new_df['VWAP'] = df.groupby(pd.Grouper(key='time', freq='1D'))['vol x close'].sum() / new_df['volume']
 
                 # drop nan
                 new_df.dropna(inplace=True)

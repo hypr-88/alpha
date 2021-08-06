@@ -1,5 +1,6 @@
 import pandas as pd
 import talib
+from arch import arch_model
 
 
 def EMA(series: pd.Series, window: int):
@@ -28,3 +29,10 @@ def RSI(series: pd.Series, window: int):
 
 def BBANDS(series: pd.Series, window: int, nbdevup: int, nbdevdn: int):
     return talib.BBANDS(series, timeperiod=window, nbdevup=nbdevup, nbdevdn=nbdevdn, matype=0)
+
+
+def Volatility(series: pd.Series):
+    series *= 100  # convert returns to %. For convergence purpose of the algorithm
+    model = arch_model(series, vol='GARCH', p=1, o=1, q=1, dist='normal')
+    result = model.fit()
+    return result.conditional_volatility

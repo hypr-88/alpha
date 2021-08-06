@@ -1,6 +1,11 @@
+import numpy as np
 import pandas as pd
 from enum import Enum
-from Features import EMA, ESTD, STD, SMA, RSI, MACD, BBANDS
+
+from sklearn.preprocessing import MinMaxScaler
+from typing import Dict
+
+from Features import EMA, ESTD, STD, SMA, RSI, MACD, BBANDS, Volatility
 
 basicFeatures = ['open', 'close', 'high', 'volume', 'return']
 
@@ -13,6 +18,8 @@ class DeriveFeature(Enum):
     MACD = 'MACD'
     RSI = 'RSI'
     BBANDS = 'BBANDS'
+    Volatility = 'Volatility'
+    LogVolatility = 'LogVolatility'
 
 
 def validateFeatureInput(feature: dict) -> bool:
@@ -44,13 +51,13 @@ def deriveFeature(featureListInput: [dict], data: dict[str, pd.DataFrame]) -> [s
             elif featureType == DeriveFeature.STD.value:
                 featureWindow = f['window']
                 colName = featureType + "_" + str(featureWindow)
-                df[colName] = STD(df['close'], featureWindow)
+                df[colName] = STD(df['close_return'], featureWindow)
                 featureCols.add(colName)
 
             elif featureType == DeriveFeature.ESTD.value:
                 featureWindow = f['window']
                 colName = featureType + "_" + str(featureWindow)
-                df[colName] = ESTD(df['close'], featureWindow)
+                df[colName] = ESTD(df['close_return'], featureWindow)
                 featureCols.add(colName)
 
             elif featureType == DeriveFeature.SMA.value:
@@ -97,6 +104,16 @@ def deriveFeature(featureListInput: [dict], data: dict[str, pd.DataFrame]) -> [s
 
                 featureCols.update([upperFeatureColName, middleFeatureColName, lowerFeatureColName])
 
+            elif featureType == DeriveFeature.Volatility.value:
+                colName = featureType
+                df[colName] = Volatility(df['close_return'])
+                featureCols.add(colName)
+
+            elif featureType == DeriveFeature.LogVolatility.value:
+                colName = featureType
+                df[colName] = np.log(Volatility(df['close_return']).iloc[1:])
+                featureCols.add(colName)
+
     for df in data.values():
         df.dropna(inplace=True)
 
@@ -110,9 +127,34 @@ def basicFeature(featureListInput: [str], data: dict[str, pd.DataFrame]) -> [str
         if f not in featureListInput:
             for df in data.values():
                 df.drop(columns=[f])
-        elif f == 'return':
+        elif f == 'close_return':
             for df in data.values():
-                df['return'] = df['close'] / df['close'].shift(1) - 1
+                df['close_return'] = df['close'] / df['close'].shift(1) - 1
+
+            featureCol.append(f)
+        elif f == 'open_return':
+            for df in data.values():
+                df['open_return'] = df['open'] / df['open'].shift(1) - 1
+
+            featureCol.append(f)
+        elif f == 'high_return':
+            for df in data.values():
+                df['high_return'] = df['high'] / df['high'].shift(1) - 1
+
+            featureCol.append(f)
+        elif f == 'low_return':
+            for df in data.values():
+                df['low_return'] = df['low'] / df['low'].shift(1) - 1
+
+            featureCol.append(f)
+        elif f == 'log_volume':
+            for df in data.values():
+                df['log_volume'] = np.log(df['volume'])
+
+            featureCol.append(f)
+        elif f == 'log_high_low':
+            for df in data.values():
+                df['log_high_low'] = np.log(df['high'] - df['low'])
 
             featureCol.append(f)
         else:
@@ -122,3 +164,18 @@ def basicFeature(featureListInput: [str], data: dict[str, pd.DataFrame]) -> [str
         df.dropna(inplace=True)
 
     return featureCol
+
+
+def transform(data: Dict[str, pd.DataFrame]) -> Dict[str, tuple]:
+    table = dict()
+    for symbol, df in data.items():
+        y = np.array(df['close_return'].iloc[1:]).reshape(-1, 1)
+        X = df.iloc[:-1, :]
+        scalerFeatures = MinMaxScaler(feature_range=(-1, 1))
+        scalerLabel = MinMaxScaler(feature_range=(-1, 1))
+        scalerFeatures.fit(X)
+        scalerLabel.fit(y)
+        transform_features = scalerFeatures.transform(X)
+        transform_label = scalerLabel.transform(y)
+        table[symbol] = (transform_features, transform_label, scalerFeatures, scalerLabel)
+    return table
