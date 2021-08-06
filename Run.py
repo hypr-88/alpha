@@ -18,7 +18,7 @@ if __name__ == '__main__':
     changeProb: probability of mutation by changing
     '''
     
-    x = AlphaEvolve(name = '4symbols_004', mutateProb = 0.9, population = 100, tournament = 10, window = 30, 
-                    numNewAlphaPerMutation = 50, trainRatio = 0.7, validRatio = 0.15, TimeBudget = (1, 0, 0, 0), 
-                    maxNumNodes = 500, maxLenShapeNode = 50, addProb = 0.4, delProb = 0.3, changeProb = 0.3)
+    x = AlphaEvolve(name = '4symbols_004', mutateProb = 0.9, population = 50, tournament = 10, window = 30, 
+                    numNewAlphaPerMutation = 15, trainRatio = 0.7, validRatio = 0.15, TimeBudget = (2, 0, 0, 0), 
+                    maxNumNodes = 500, maxLenShapeNode = 50, addProb = 0.3, delProb = 0.2, changeProb = 0.5)
     x.run()

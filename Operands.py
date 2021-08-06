@@ -70,7 +70,7 @@ class Scalar():
             elif sum(s.shape)/len(s.shape) == 1:
                 s = float(s)
         if isinstance(s, float) or isinstance(s, int):
-            s = np.array(s, dtype = np.float32)
+            s = np.array(s, dtype = np.float64)
             self.value = s
         else:
             self.value = None
@@ -137,10 +137,10 @@ class Vector():
 
         '''
         if isinstance(v, np.matrix):
-            v = np.asarray(v, dtype = np.float32)
+            v = np.asarray(v, dtype = np.float64)
         if not isinstance(v, np.ndarray):
             try:
-                v = np.array(v, dtype = np.float32)
+                v = np.array(v, dtype = np.float64)
             except:
                 self.value = None
                 raise Error("Input is not vector")
@@ -223,10 +223,10 @@ class Matrix():
         '''
         
         if isinstance(m, np.matrix):
-            m = np.asarray(m, dtype = np.float32)
+            m = np.asarray(m, dtype = np.float64)
         if not isinstance(m, np.ndarray):
             try:
-                m = np.array(m, dtype = np.float32)
+                m = np.array(m, dtype = np.float64)
             except:
                 self.value = None
                 raise Error("Input is not matrix")

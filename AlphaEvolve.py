@@ -795,8 +795,9 @@ class AlphaEvolve():
         else:
             transform_features, transform_label = self.transformedData[symbol]
             X = transform_features[i-self.window:i]
-            y = transform_label[i]
-            return np.array(X, dtype = np.float32), np.array(y, dtype = np.float32)
+            y = transform_label[i,0]
+            assert X.shape == (self.window, len(self.featuresList))
+            return np.array(X, dtype = np.float64), np.array(y, dtype = np.float64)
 
     def initiatePopulation(self):
         '''
@@ -1012,7 +1013,7 @@ class AlphaEvolve():
             MIScore = sum(MIScore)/len(MIScore)
         except: MIScore = 0
         
-        return fitnessScore, np.array(validPrediction, dtype = np.float32), np.array(validActual, dtype = np.float32)
+        return fitnessScore, np.array(validPrediction, dtype = np.float64), np.array(validActual, dtype = np.float64)
         
     def test(self):
         '''
@@ -1046,7 +1047,7 @@ class AlphaEvolve():
             MIScore = sum(MIScore)/len(MIScore)
         except: MIScore = 0
         
-        return  testScore, np.array(testPrediction, dtype = np.float32), np.array(testActual, dtype = np.float32)
+        return  testScore, np.array(testPrediction, dtype = np.float64), np.array(testActual, dtype = np.float64)
     
     def setup(self):
         '''
@@ -1158,15 +1159,23 @@ class AlphaEvolve():
 
         '''
         fitnessScore, validPrediction, validActual, testScore, testPrediction, testActual = self.evaluate()
+        returns = np.zeros(testActual.shape)
+        Prediction = np.zeros(testPrediction.shape)
+        for i, symbol in enumerate(self.symbolList):
+            scaler_label = self.scaler[i][1]
+            returns[:, i] = scaler_label.inverse_transform(np.array(testActual[:, i]).reshape(-1, 1)).reshape(testActual.shape[0],)
+            Prediction[:, i] = scaler_label.inverse_transform(np.array(testPrediction[:, i]).reshape(-1, 1)).reshape(testPrediction.shape[0],)
+            #check invert transform correct or not
+            assert (returns[:, i] - np.array(self.data[symbol]['close_return'].iloc[self.trainLength + self.validLength+1:self.dataLength]).reshape(testPrediction.shape[0],) < 0.00001).all()
         if show:
             print('========================================')
             self.currAlpha.graph.show()
             print('VALIDATION FITNESS:', fitnessScore)
             print('TEST FITNESS      :', testScore)
-            dailyReturns, annualizedReturns, sharpe = backtest(self.scaler, testActual, testPrediction, show)
+            dailyReturns, annualizedReturns, sharpe = backtest(returns, Prediction, show)
             print('========================================')
         else:
-            dailyReturns, annualizedReturns, sharpe = backtest(self.scaler, testActual, testPrediction, show)
+            dailyReturns, annualizedReturns, sharpe = backtest(returns, Prediction, show)
         return fitnessScore, dailyReturns, annualizedReturns, sharpe    
     
     def summaryBestFit(self):
@@ -1215,7 +1224,7 @@ class AlphaEvolve():
     def pickTournament(self):
         #    randomly choose tournamentLength alphas in population and bestfit alpha
         # -> this method facilitate to choose best fit alpha ever (even if that alpha is not in population)
-        self.tournament = np.random.choice(self.population + [self.bestFit[0]], replace = False, size = self.tournamentLength)
+        self.tournament = np.random.choice(self.population, replace = False, size = self.tournamentLength)
     
     def extractAlpha(self, name: str = 'abc'):
         #handle int32 and float32 to serialize to json
