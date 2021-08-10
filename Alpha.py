@@ -492,7 +492,7 @@ class Alpha():
                     
             elif mutateType == 1 or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating predict by removing Operands
                 if np.random.binomial(1, prob): #remove 1 operation only
-                    if len(self.graph.predictOPs) >= 1:
+                    if len(self.graph.predictOPs) >= 4:
                         key = 's1'
                         while key in {'s1', 'm0', 's0'}: #force sellecting operation output different from s1, m0
                             op_index = np.random.randint(len(self.graph.predictOPs))
@@ -829,7 +829,7 @@ class Alpha():
                 if ret is not None: return ret    
             elif mutateType == 1 or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating update by removing Operands
                 if np.random.binomial(1, prob): #remove 1 operation
-                    if len(self.graph.updateOPs) >= 1:
+                    if len(self.graph.updateOPs) >= 4:
                         key = 's1'
                         while key in {'s1', 'm0', 's0'}: #force sellecting operation output different from s1, m0
                             op_index = np.random.randint(len(self.graph.updateOPs))
@@ -1109,7 +1109,7 @@ class Alpha():
             mutateSummary['predict']['actual']['change'] += 1
         #make sure s1 connects m0
         cnt = 0
-        while (not self.checkS1ConnectsM0_Predict()) and cnt < 1000:
+        while (not self.checkS1ConnectsM0_Predict()) and cnt < 10000:
             addProb = self.mutateProb*self._updateAddOperandProb()
             delProb = self.mutateProb*(1-self._updateAddOperandProb())
             changeProb = self.mutateProb*self._updateAddOperandProb()*(1-self._updateAddOperandProb())
@@ -1127,7 +1127,7 @@ class Alpha():
                 mutateSummary['predict']['actual']['change'] += 1
                 
             cnt += 1
-            if cnt >= 1000:
+            if cnt >= 10000:
                 self.graph.addPredictOPs(len(self.graph.predictOPs), 's1', np.random.choice([34, 51, 55]), ['m0'])
                 break
                 #self.graph.show()

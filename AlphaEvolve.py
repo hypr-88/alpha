@@ -240,6 +240,7 @@ class AlphaEvolve():
         None.
 
         '''
+        self.scaler = {}
         self.name = name
         self.mutateProb = mutateProb
         
@@ -273,7 +274,8 @@ class AlphaEvolve():
         self.mutateSummary = []
         self.fitnessSummary = []
         self.sharpeSummary = []
-        
+        self.testScoreSummary = []
+        self.allAlphaInformation = []
         
     def checkTimeBudget(self):
         '''
@@ -308,8 +310,8 @@ class AlphaEvolve():
         # prunning and get fingerprint
         self.prunning()
         fingerPrint = self.fingerprint()
-        fitnessScore, dailyReturns, annualizedReturns, sharpe = self.summaryAlpha()
-        return alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues
+        fitnessScore, dailyReturns, annualizedReturns, sharpe, testScore, ultilization, returnDetails, returns, Prediction = self.summaryAlpha()
+        return alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, self.OperandsValues, testScore, ultilization, returnDetails, returns, Prediction
     
     def combineAlphas(self, alpha_1, alpha_2):
         graph_1 = copy.deepcopy(alpha_1.graph)
@@ -544,9 +546,11 @@ class AlphaEvolve():
         df1['aveSharpe'] = [x[1] for x in self.sharpeSummary]
         df1['minSharpe'] = [x[2] for x in self.sharpeSummary]
         
+        df1['TestScore'] = self.testScoreSummary
+        
         df1.to_csv('evolve summary.csv')
         
-        plt.figure(figsize = (10,8))
+        plt.figure(figsize = (10,6))
         plt.plot(df1['maxFit'], label = 'max')
         plt.plot(df1['aveFit'], label = 'ave')
         plt.plot(df1['minFit'], label = 'min')
@@ -554,7 +558,13 @@ class AlphaEvolve():
         plt.legend()
         plt.show()
         
-        plt.figure(figsize = (10,8))
+        plt.figure(figsize = (10,6))
+        plt.plot(df1['maxFit'], label = 'validation')
+        plt.plot(df1['TestScore'], label = 'test')
+        plt.legend()
+        plt.show()
+        
+        plt.figure(figsize = (10,6))
         plt.plot(df1['maxSharpe'], label = 'max')
         plt.plot(df1['aveSharpe'], label = 'ave')
         plt.plot(df1['minSharpe'], label = 'min')
@@ -576,7 +586,6 @@ class AlphaEvolve():
         self.preparedData()
         self.trainLength = round(self.dataLength * self.trainRatio)
         self.validLength = round(self.dataLength * self.validRatio)
-        self.transformData()
         
         #initiate 1st population
         self.initiatePopulation()
@@ -590,22 +599,27 @@ class AlphaEvolve():
             newMutate = self.createNewMutate()
             
             validAlpha = []
-
-            ctx = multiprocessing.get_context('spawn')
-            pool = ctx.Pool()
-            count = 0
-            for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues in pool.imap(self.parallelNewMutate, newMutate):
-                if fingerPrint in self.fitnessScore:
-                    pass
-                elif (fitnessScore > -1): #and np.corrcoef(dailyReturns, self.bestFit[2])[0,1] < 0.7:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
-                    validAlpha.append(
-                        [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues])
-                
-                print("Done:", count)
-                count += 1
-
-            pool.close()
-            pool.join()
+            try:
+                ctx = multiprocessing.get_context('spawn')
+                pool = ctx.Pool()
+                count = 0
+                for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues, testScore, ultilization, returnDetails, returns, Prediction in pool.imap(self.parallelNewMutate, newMutate):
+                    if fingerPrint in self.fitnessScore:
+                        pass
+                    elif (fitnessScore > -1): #and np.corrcoef(dailyReturns, self.bestFit[2])[0,1] < 0.7:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
+                        validAlpha.append(
+                            [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues, testScore, ultilization, returnDetails, returns, Prediction])
+                        self.allAlphaInformation.append([alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues, testScore, ultilization, returnDetails, returns, Prediction])
+                    
+                    print("Done:", count)
+                    count += 1
+    
+                pool.close()
+                pool.join()
+            except ValueError:
+                #ValueError: Input contains infinity or a value too large for dtype('float64')
+                #avoid error when inverse-scaling
+                continue
             
             if validAlpha == []:
                 print('continue')
@@ -618,14 +632,21 @@ class AlphaEvolve():
             aveSharpe = sum([x[4] for x in validAlpha])/len([x[4] for x in validAlpha])
             self.fitnessSummary.append((maxFit, aveFit, minFit))
             self.sharpeSummary.append((maxSharpe, aveSharpe, minSharpe))
-            
             #sort new mutated alphas by decreasing order of fitness
             newAlphaInfo = sorted(validAlpha, key = lambda x: x[1], reverse = True)[0]
+            TestScore = newAlphaInfo[6]
+            self.testScoreSummary.append(TestScore)
             newAlphaInfo[0].graph.show()
             print('++++++++++++++++++++++++++++++++++++++++')
             print('VALIDATION FITNESS:', newAlphaInfo[1])
             print('ANNUAlIZED RETURNS:', newAlphaInfo[3])
             print('SHARPE RATIO      :', newAlphaInfo[4])
+            newAlphaInfo[7].index = self.symbolList
+            print('ULTILIZATION      :')
+            print(newAlphaInfo[7])
+            print('Returns details   :')
+            newAlphaInfo[8].index = self.symbolList
+            print(newAlphaInfo[8])
             plt.figure(figsize = (5,3))
             plt.plot(newAlphaInfo[2])
             plt.title('Cumulative Returns')
@@ -641,13 +662,15 @@ class AlphaEvolve():
             # if this new alpha beat best fit alpha ever -> replace best fit alpha
             if newAlphaInfo[1] > self.bestFit[1]:
                 self.bestFit = newAlphaInfo
+                pd.DataFrame(newAlphaInfo[9]).to_csv('Actual returns.csv')
+                pd.DataFrame(newAlphaInfo[10]).to_csv('Prediction.csv')
             
             # add alpha to population and remove oldest alpha
             self.population.append(self.currAlpha)
             self.population.pop(0)
             
             #summary best fit alpha ever
-            self.summaryBestFit()
+            #self.summaryBestFit()
             
             cnt+=1
             if cnt%20 == 0:
@@ -760,7 +783,7 @@ class AlphaEvolve():
             df.dropna(inplace = True)
             self.dataLength = len(df)
     def transformData(self):
-        self.scaler = []
+        
         self.transformedData = {}
         for symbol in self.symbolList:
             X = self.data[symbol].iloc[:-1,:]
@@ -793,10 +816,20 @@ class AlphaEvolve():
         if i<self.window:
             return None
         else:
-            transform_features, transform_label = self.transformedData[symbol]
-            X = transform_features[i-self.window:i]
-            y = transform_label[i,0]
+            X = self.data[symbol].iloc[:i,:]
+            y = np.array(self.data[symbol]['close_return'].iloc[1:i+1]).reshape(-1, 1)
+            scaler_features = MinMaxScaler(feature_range=(-1, 1))
+            scaler_label = MinMaxScaler(feature_range=(-1, 1))
+            scaler_features.fit(X)
+            scaler_label.fit(y)
+            transform_features = scaler_features.transform(X)
+            transform_label = scaler_label.transform(y)
+            self.scaler[symbol] = (scaler_features, scaler_label)
+            
+            X = transform_features[-self.window:,:]
+            y = transform_label[-1,0]
             assert X.shape == (self.window, len(self.featuresList))
+            assert y.shape == ()
             return np.array(X, dtype = np.float64), np.array(y, dtype = np.float64)
 
     def initiatePopulation(self):
@@ -828,7 +861,7 @@ class AlphaEvolve():
         # prunning
         self.prunning()
         # evaluation Alpha
-        fitnessScore, dailyReturns, annualizedReturns, sharpe = self.summaryAlpha()
+        fitnessScore, dailyReturns, annualizedReturns, sharpe, testScore, ultilization, returnDetails, returns, Prediction = self.summaryAlpha()
         # fingerprint
         fingerPrint = self.fingerprint()
 
@@ -841,27 +874,34 @@ class AlphaEvolve():
         -------
         None.
         '''
-        self.bestFit = [None, -1000, 0, 0, 0, {}]
-        ctx = multiprocessing.get_context('spawn')
-        pool = ctx.Pool()
-        count = 0
-        for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues in \
-                pool.imap(self.parallelPopulation, self.population[:self.populationLength]):
-
-            if alpha.fingerprint() in self.fitnessScore:
-                pass
-            else:
-                self.fitnessScore[alpha.fingerprint()] = fitnessScore
-
-            # update best fit alpha ever
-            if fitnessScore > self.bestFit[1]:
-                self.bestFit = [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues]
-            
-            self.population[count] = alpha
-            print("Done: ", count)
-            count += 1
-        pool.close()
-        pool.join()
+        while True:
+            try:
+                self.bestFit = [None, -1000, 0, 0, 0, {}]
+                ctx = multiprocessing.get_context('spawn')
+                pool = ctx.Pool()
+                count = 0
+                for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues in \
+                        pool.imap(self.parallelPopulation, self.population[:self.populationLength]):
+        
+                    if alpha.fingerprint() in self.fitnessScore:
+                        pass
+                    else:
+                        self.fitnessScore[alpha.fingerprint()] = fitnessScore
+        
+                    # update best fit alpha ever
+                    if fitnessScore > self.bestFit[1]:
+                        self.bestFit = [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues]
+                    
+                    self.population[count] = alpha
+                    print("Done: ", count)
+                    count += 1
+                pool.close()
+                pool.join()
+                break
+            except ValueError:
+                self.population = []
+                self.initiatePopulation()
+                continue
     
     def evaluate(self):
         '''
@@ -1001,9 +1041,9 @@ class AlphaEvolve():
             self.predict()
             self.addS0(i)
             assert len(self.OperandsValues['s1']) == len(self.OperandsValues['s0']) == len(self.symbolList)
-            fitnessScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
-            validPrediction.append(self.OperandsValues['s1'].copy())
-            validActual.append(self.OperandsValues['s0'].copy())
+            fitnessScore.append(np.corrcoef(self.OperandsValues['s1'].copy(), self.OperandsValues['s0'].copy())[0,1])
+            validPrediction.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s1'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])#self.OperandsValues['s1'].copy())
+            validActual.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s0'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])#self.OperandsValues['s0'].copy())
         fitnessScore = sum(fitnessScore)/len(fitnessScore)#/np.std(fitnessScore)
         #if fitness score is nan -> s1 is constance -> set fitness score to the lowest value possible
         if np.isnan(fitnessScore): fitnessScore = -1
@@ -1014,7 +1054,7 @@ class AlphaEvolve():
             MIScore = sum(MIScore)/len(MIScore)
         except: MIScore = 0
         
-        return fitnessScore, np.array(validPrediction, dtype = np.float64), np.array(validActual, dtype = np.float64)
+        return fitnessScore + MIScore, np.array(validPrediction, dtype = np.float64), np.array(validActual, dtype = np.float64)
         
     def test(self):
         '''
@@ -1036,9 +1076,9 @@ class AlphaEvolve():
             self.predict()
             self.addS0(i)
             assert len(self.OperandsValues['s1']) == len(self.OperandsValues['s0']) == len(self.symbolList)
-            testScore.append(np.corrcoef(self.OperandsValues['s1'], self.OperandsValues['s0'])[0,1])
-            testPrediction.append(self.OperandsValues['s1'].copy())
-            testActual.append(self.OperandsValues['s0'].copy())
+            testScore.append(np.corrcoef(self.OperandsValues['s1'].copy(), self.OperandsValues['s0'].copy())[0,1])
+            testPrediction.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s1'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])#self.OperandsValues['s1'].copy())
+            testActual.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s0'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])#self.OperandsValues['s0'].copy())
         testScore = sum(testScore)/len(testScore)#/np.std(testScore)
         #if test score is nan -> s1 is constance -> set test score to the lowest value possible
         if np.isnan(testScore): testScore = -1
@@ -1049,7 +1089,7 @@ class AlphaEvolve():
             MIScore = sum(MIScore)/len(MIScore)
         except: MIScore = 0
         
-        return  testScore, np.array(testPrediction, dtype = np.float64), np.array(testActual, dtype = np.float64)
+        return  testScore + MIScore, np.array(testPrediction, dtype = np.float64), np.array(testActual, dtype = np.float64)
     
     def setup(self):
         '''
@@ -1161,7 +1201,7 @@ class AlphaEvolve():
 
         '''
         fitnessScore, validPrediction, validActual, testScore, testPrediction, testActual = self.evaluate()
-        returns = np.zeros(testActual.shape)
+        '''returns = np.zeros(testActual.shape)
         Prediction = np.zeros(testPrediction.shape)
         for i, symbol in enumerate(self.symbolList):
             scaler_label = self.scaler[i][1]
@@ -1169,19 +1209,20 @@ class AlphaEvolve():
             try:
                 Prediction[:, i] = scaler_label.inverse_transform(np.array(testPrediction[:, i]).reshape(-1, 1)).reshape(testPrediction.shape[0],)
             except:
-                Prediction = testPrediction
+                Prediction = testPrediction'''
+        for i, symbol in enumerate(self.symbolList):
             #check invert transform correct or not
-            assert (returns[:, i] - np.array(self.data[symbol]['close_return'].iloc[self.trainLength + self.validLength+1:self.dataLength]).reshape(testPrediction.shape[0],) < 0.00001).all()
+            assert (testActual[:, i] - np.array(self.data[symbol]['close_return'].iloc[self.trainLength + self.validLength:self.dataLength-1]).reshape(testActual.shape[0],) < 0.00001).all()
         if show:
             print('========================================')
             self.currAlpha.graph.show()
             print('VALIDATION FITNESS:', fitnessScore)
             print('TEST FITNESS      :', testScore)
-            dailyReturns, annualizedReturns, sharpe = backtest(returns, Prediction, show)
+            dailyReturns, annualizedReturns, sharpe, ultilization, returnDetails = backtest(testActual, testPrediction, show)
             print('========================================')
         else:
-            dailyReturns, annualizedReturns, sharpe = backtest(returns, Prediction, show)
-        return fitnessScore, dailyReturns, annualizedReturns, sharpe    
+            dailyReturns, annualizedReturns, sharpe, ultilization, returnDetails = backtest(testActual, testPrediction, show)
+        return fitnessScore, dailyReturns, annualizedReturns, sharpe, testScore, ultilization, returnDetails, validActual, validPrediction
     
     def summaryBestFit(self):
         '''

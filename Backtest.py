@@ -53,7 +53,7 @@ def backtest(returns: np.ndarray, Prediction: np.ndarray, show: bool = True, pct
         weights = 1/noLongShort
         
         #convert predict returns to ranking array
-        Prediction = Prediction.rank(pct = True, axis = 1)
+        #Prediction = Prediction.rank(pct = True, axis = 1)
         
         #define assign weights function
         def assignWeight(row):
@@ -75,7 +75,10 @@ def backtest(returns: np.ndarray, Prediction: np.ndarray, show: bool = True, pct
             return row
         
         #apply assignWeight to each row of prediction
-        Weights = Prediction.apply(assignWeight, axis = 1)
+        Weights = pd.DataFrame(np.sign(Prediction)) #Prediction.apply(assignWeight, axis = 1)
+        Weights = Weights.divide(np.abs(Weights).sum(axis=1), axis = 0)
+        ultilization = np.abs(np.sign(Weights)).sum(axis=0)
+        returnDetails = (Weights * returns).sum(axis = 0)
         
         #calculate daily returns of portfolio
         dailyReturns = (Weights * returns).sum(axis = 1)
@@ -110,4 +113,4 @@ def backtest(returns: np.ndarray, Prediction: np.ndarray, show: bool = True, pct
             plt.show()
             print('++++++++++++++++++++++++++++++++++++++++')
         
-        return dailyReturns, annualizedReturns, sharpe
+        return dailyReturns, annualizedReturns, sharpe, ultilization, returnDetails
