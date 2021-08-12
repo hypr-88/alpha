@@ -211,7 +211,7 @@ class AlphaEvolve():
         run the alpha evolve
     '''
     def __init__(self, name = 'abc', mutateProb = 0.9, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 3,
-                 trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxNumNodes: int = 200, maxLenShapeNode: int = 30,
+                 trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxNumNodes: tuple = (50, 200, 250), maxLenShapeNode: int = 30,
                  file: str = "may_premium_dataset_USDT.zip", addProb: float = 0.4, delProb: float = 0.3, changeProb: float = 0.3):
         '''
         Method used to initiate AlphaEvolve
@@ -388,7 +388,7 @@ class AlphaEvolve():
         newSetup.append(['s4', 56, [2]])
         newPredict.append(['s1', 4, ['s3', 's4']])
         
-        maxNumNodes = graph_1.maxNumNodes + graph_2.maxNumNodes
+        maxNumNodes = (graph_1.maxNumNodes[0] + graph_2.maxNumNodes[0], graph_1.maxNumNodes[1] + graph_2.maxNumNodes[1], graph_1.maxNumNodes[2] + graph_2.maxNumNodes[2])
         
         newGraph = Graph(nodes = nodes, setupOPs = newSetup, predictOPs = newPredict, updateOPs = newUpdate, maxNumNodes = maxNumNodes)
         newAlpha = Alpha(newGraph)
@@ -406,6 +406,7 @@ class AlphaEvolve():
                 'update': {'prob': {'add': [], 'del': [], 'change': []}, 
                            'actual': {'add': 0, 'del': 0, 'change': 0}}}
         for i in range(self.numNewAlphaPerMutation):
+            cnt = 0
             while True:
                 try:
                     #if bestFit_2 <= 0:
@@ -416,6 +417,9 @@ class AlphaEvolve():
                     #    newAlpha = copy.deepcopy(alpha_1)
                     newAlpha = copy.deepcopy(alpha_1)
                     mutateSummary = newAlpha.mutate()
+                    cnt += 1
+                    if not newAlpha.checkS1ConnectsM0_Predict() and cnt < 100:
+                        continue
                     newMutate.append(newAlpha)
                     
                     summary['setup']['prob']['add'].append(mutateSummary['setup']['prob']['add'])
@@ -606,7 +610,7 @@ class AlphaEvolve():
                 for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues, testScore, ultilization, returnDetails, returns, Prediction in pool.imap(self.parallelNewMutate, newMutate):
                     if fingerPrint in self.fitnessScore:
                         pass
-                    elif (fitnessScore > -1): #and np.corrcoef(dailyReturns, self.bestFit[2])[0,1] < 0.7:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
+                    elif (fitnessScore > -1) and alpha.checkS1ConnectsM0_Predict() and np.corrcoef(dailyReturns, self.bestFit[2])[0,1] < 0.9:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
                         validAlpha.append(
                             [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues, testScore, ultilization, returnDetails, returns, Prediction])
                         self.allAlphaInformation.append([alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues, testScore, ultilization, returnDetails, returns, Prediction])
@@ -698,7 +702,6 @@ class AlphaEvolve():
             #for elem in list_of_files:
                 #get the symbol
                 #symbol = os.path.splitext(elem)[0]
- 
             for symbol in main_pairs:
                 #read csv
                 with zip_ref.open(symbol+'.csv') as f:
@@ -731,7 +734,6 @@ class AlphaEvolve():
                         self.data[symbol] = new_df
         
         self.symbolList = list(self.data.keys())
-        
         #get intersection trading date of all symbols
         idx = list(self.data.values())[0].index
         for symbol, df in self.data.items():
@@ -1041,9 +1043,10 @@ class AlphaEvolve():
             self.predict()
             self.addS0(i)
             assert len(self.OperandsValues['s1']) == len(self.OperandsValues['s0']) == len(self.symbolList)
-            fitnessScore.append(np.corrcoef(self.OperandsValues['s1'].copy(), self.OperandsValues['s0'].copy())[0,1])
+            #fitnessScore.append(np.corrcoef(self.OperandsValues['s1'].copy(), self.OperandsValues['s0'].copy())[0,1])
             validPrediction.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s1'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])#self.OperandsValues['s1'].copy())
             validActual.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s0'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])#self.OperandsValues['s0'].copy())
+            fitnessScore.append(np.corrcoef(validPrediction[-1].copy(), validActual[-1].copy())[0,1])
         fitnessScore = sum(fitnessScore)/len(fitnessScore)#/np.std(fitnessScore)
         #if fitness score is nan -> s1 is constance -> set fitness score to the lowest value possible
         if np.isnan(fitnessScore): fitnessScore = -1
@@ -1054,7 +1057,7 @@ class AlphaEvolve():
             MIScore = sum(MIScore)/len(MIScore)
         except: MIScore = 0
         
-        return fitnessScore + MIScore, np.array(validPrediction, dtype = np.float64), np.array(validActual, dtype = np.float64)
+        return fitnessScore, np.array(validPrediction, dtype = np.float64), np.array(validActual, dtype = np.float64)
         
     def test(self):
         '''
@@ -1076,9 +1079,10 @@ class AlphaEvolve():
             self.predict()
             self.addS0(i)
             assert len(self.OperandsValues['s1']) == len(self.OperandsValues['s0']) == len(self.symbolList)
-            testScore.append(np.corrcoef(self.OperandsValues['s1'].copy(), self.OperandsValues['s0'].copy())[0,1])
+            #testScore.append(np.corrcoef(self.OperandsValues['s1'].copy(), self.OperandsValues['s0'].copy())[0,1])
             testPrediction.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s1'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])#self.OperandsValues['s1'].copy())
             testActual.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s0'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])#self.OperandsValues['s0'].copy())
+            testScore.append(np.corrcoef(testPrediction[-1].copy(), testActual[-1].copy())[0,1])
         testScore = sum(testScore)/len(testScore)#/np.std(testScore)
         #if test score is nan -> s1 is constance -> set test score to the lowest value possible
         if np.isnan(testScore): testScore = -1
@@ -1089,7 +1093,7 @@ class AlphaEvolve():
             MIScore = sum(MIScore)/len(MIScore)
         except: MIScore = 0
         
-        return  testScore + MIScore, np.array(testPrediction, dtype = np.float64), np.array(testActual, dtype = np.float64)
+        return  testScore, np.array(testPrediction, dtype = np.float64), np.array(testActual, dtype = np.float64)
     
     def setup(self):
         '''

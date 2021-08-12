@@ -135,7 +135,7 @@ class Graph():
     
     '''
     
-    def __init__(self, nodes: dict = None, setupOPs: list = None, predictOPs: list = None, updateOPs: list = None, maxNumNodes: int = 200, allowedSetupOPs: list = [56, 57, 58, 59, 60, 61, 62, 63, 64], allowedPredictOPs: list = list(range(1,56)) + [60, 61, 65, 66, 67], allowedUpdateOPs: list = list(range(1,56)) + [60, 61, 65, 66, 67], rf: float = 0.02):
+    def __init__(self, nodes: dict = None, setupOPs: list = None, predictOPs: list = None, updateOPs: list = None, maxNumNodes: tuple = (50, 200, 250), allowedSetupOPs: list = [56, 57, 58, 59, 60, 61, 62, 63, 64], allowedPredictOPs: list = list(range(1,56)) + [60, 61, 65, 66, 67], allowedUpdateOPs: list = list(range(1,56)) + [60, 61, 65, 66, 67], rf: float = 0.02):
         '''
         Initiate a new graph object.
 

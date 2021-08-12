@@ -31,7 +31,7 @@ def BBANDS(series: pd.Series, window: int, nbdevup: int, nbdevdn: int):
 
 
 def Volatility(returns: pd.Series):
-    returns *= 100 # convert returns to %. For convergence purpose of the algorithm
-    model = arch_model(returns, vol='GARCH', p=1, o=1, q=1, dist='normal')
+    new_returns = 100*returns # convert returns to %. For convergence purpose of the algorithm
+    model = arch_model(new_returns, vol='GARCH', p=1, o=1, q=1, dist='normal')
     result = model.fit()
     return result.conditional_volatility

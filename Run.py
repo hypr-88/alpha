@@ -1,5 +1,6 @@
 from AlphaEvolve import AlphaEvolve
-
+from Graph import Graph
+from Operands import *
 if __name__ == '__main__':
     '''
     name: name of alpha that will be saved on the server to backtest on the terminal
@@ -17,8 +18,11 @@ if __name__ == '__main__':
     delProb: probability of mutation by removing
     changeProb: probability of mutation by changing
     '''
-    
-    x = AlphaEvolve(name = '4symbols_005', mutateProb = 0.9, population = 100, tournament = 10, window = 30, 
+    a = Graph()
+    a.addNodes(Scalar(1))
+    a.addSetupOPs(0, 's2', 56, [1])
+    a.addPredictOPs(0, 's1', 3, ['s0', 's2'])
+    x = AlphaEvolve(graph = a, name = '4symbols_005', mutateProb = 0.9, population = 50, tournament = 10, window = 30, 
                     numNewAlphaPerMutation = 15, trainRatio = 0.7, validRatio = 0.15, TimeBudget = (2, 0, 0, 0), 
-                    maxNumNodes = 500, maxLenShapeNode = 50, addProb = 0.5, delProb = 0.2, changeProb = 0.3)
+                    maxNumNodes = (50, 200, 250), maxLenShapeNode = 50, addProb = 0.5, delProb = 0.1, changeProb = 0.5, frequency = '1D')
     x.run()

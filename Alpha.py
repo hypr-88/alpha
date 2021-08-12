@@ -51,7 +51,7 @@ class Alpha():
         Method used to mutate the Graph attribute (Operands/Operations) to generate a new form of graph.
     '''
     
-    def __init__(self, graph: Graph = None, maxNumNodes: int = 200, mutateProb: float = 0.9, rf: float = 0.02, maxLenShapeNode: int = 20, addProb: float = 0.4, delProb: float = 0.3, changeProb: float = 0.3):
+    def __init__(self, graph: Graph = None, maxNumNodes: tuple = (50, 200, 250), mutateProb: float = 0.9, rf: float = 0.02, maxLenShapeNode: int = 20, addProb: float = 0.4, delProb: float = 0.3, changeProb: float = 0.3):
         '''
         Initiate an Alpha given a Graph or create a new Graph for Alpha.
 
@@ -115,7 +115,7 @@ class Alpha():
             The more number of operands, the less probability to add more operands to the Alpha.graph.node
 
         '''
-        return min(max((self.graph.maxNumNodes - len(self.graph.nodes))/self.graph.maxNumNodes, 0.0001), 0.9999)
+        return min(max((sum(self.graph.maxNumNodes) - len(self.graph.nodes))/sum(self.graph.maxNumNodes), 0.0001), 0.9999)
     
     def mutate_setup(self):
         '''
@@ -167,10 +167,9 @@ class Alpha():
 
         '''
         if np.random.binomial(1, self.mutateProb): #90% mutate setup
-            prob = self._updateAddOperandProb()
             mutateType = weighted_choice([self.addProb, self.delProb, self.changeProb])
-            if (mutateType == 0 or len(self.graph.setupOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes-1: #prob% mutating setup by adding Operands
-                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,min(6, self.graph.maxNumNodes - len(self.graph.nodes))), replace = False)
+            if (mutateType == 0 or len(self.graph.setupOPs) <= 1) and 0 <= len(self.graph.updateOPs) < self.graph.maxNumNodes[0]-1: #prob% mutating setup by adding Operands
+                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,min(6, sum(self.graph.maxNumNodes) - len(self.graph.nodes))), replace = False)
                 for new in newNodes:
                     key = self.graph.addNodes(new)
                     if 's' in key:
@@ -197,7 +196,7 @@ class Alpha():
                     index = np.random.randint(len(self.graph.setupOPs)+1)
                     self.graph.addSetupOPs(index, op[0], op[1], op[2])
                 return 'add'
-            elif mutateType == 1 or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating setup by removing Operands
+            elif mutateType == 1 or len(self.graph.setupOPs) >= self.graph.maxNumNodes[0]: #(1-prob)% mutating setup by removing Operands
                 if len(self.graph.setupOPs) >= 1:
                     key = 'm0'
                     while key in {'m0', 's1'}: #avoid delete m0 and s1
@@ -367,8 +366,8 @@ class Alpha():
             
             #prob% mutating predict by adding Operands
             #add operands
-            if (mutateType == 0 or len(self.graph.predictOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes-1:
-                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,min(6, self.graph.maxNumNodes - len(self.graph.nodes))), replace = False)
+            if (mutateType == 0 or len(self.graph.predictOPs) <= 1) and 0 <= len(self.graph.predictOPs) < self.graph.maxNumNodes[1]-1:
+                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,min(6, sum(self.graph.maxNumNodes) - len(self.graph.nodes))), replace = False)
                 ret = None
                 #Add Operations have 'key' as Output
                 for new in newNodes:
@@ -490,7 +489,7 @@ class Alpha():
                         ret = 'add'
                 if ret is not None: return ret
                     
-            elif mutateType == 1 or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating predict by removing Operands
+            elif mutateType == 1 or len(self.graph.predictOPs) >= self.graph.maxNumNodes[1]: #(1-prob)% mutating predict by removing Operands
                 if np.random.binomial(1, prob): #remove 1 operation only
                     if len(self.graph.predictOPs) >= 4:
                         key = 's1'
@@ -705,8 +704,8 @@ class Alpha():
             
             #prob% mutating update by adding Operands
             #add operands
-            if (mutateType == 0 or len(self.graph.updateOPs) <= 1) and 0 <= len(self.graph.nodes) < self.graph.maxNumNodes-1:
-                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,min(6, self.graph.maxNumNodes - len(self.graph.nodes))), replace = False)
+            if (mutateType == 0 or len(self.graph.updateOPs) <= 1) and 0 <= len(self.graph.updateOPs) < self.graph.maxNumNodes[2]-1:
+                newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,min(6, sum(self.graph.maxNumNodes) - len(self.graph.nodes))), replace = False)
                 ret = None
                 for new in newNodes:
                     key = self.graph.addNodes(new)
@@ -827,7 +826,7 @@ class Alpha():
                         self.graph.addUpdateOPs(index, operation[0], operation[1], operation[2])
                         ret = 'add'
                 if ret is not None: return ret    
-            elif mutateType == 1 or len(self.graph.nodes) >= self.graph.maxNumNodes: #(1-prob)% mutating update by removing Operands
+            elif mutateType == 1 or len(self.graph.updateOPs) >= self.graph.maxNumNodes[2]: #(1-prob)% mutating update by removing Operands
                 if np.random.binomial(1, prob): #remove 1 operation
                     if len(self.graph.updateOPs) >= 4:
                         key = 's1'
@@ -970,7 +969,7 @@ class Alpha():
             if op[0] in predict:
                 self.graph.predictOPs.remove(predict[op[0]])
             predict[op[0]] = op
-        return self.graph.checkS1ConnectsM0('s1', {}, predict, {}, {'m0': True, 's0': True}, 's1')
+        return self.graph.checkS1ConnectsM0('s1', {}, predict, {}, {'m0': True}, 's1')
     
     def checkOperandsConnectS0S1_Update(self):
         update = {}
