@@ -168,7 +168,7 @@ class Alpha():
         '''
         if np.random.binomial(1, self.mutateProb): #90% mutate setup
             mutateType = weighted_choice([self.addProb, self.delProb, self.changeProb])
-            if (mutateType == 0 or len(self.graph.setupOPs) <= 1) and 0 <= len(self.graph.updateOPs) < self.graph.maxNumNodes[0]-1: #prob% mutating setup by adding Operands
+            if (mutateType == 0 or len(self.graph.setupOPs) <= 1) and 0 <= len(self.graph.updateOPs) < self.graph.maxNumNodes[0] and len(self.graph.nodes) < sum(self.graph.maxNumNodes) - 1: #prob% mutating setup by adding Operands
                 newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,min(6, sum(self.graph.maxNumNodes) - len(self.graph.nodes))), replace = False)
                 for new in newNodes:
                     key = self.graph.addNodes(new)
@@ -366,7 +366,7 @@ class Alpha():
             
             #prob% mutating predict by adding Operands
             #add operands
-            if (mutateType == 0 or len(self.graph.predictOPs) <= 1) and 0 <= len(self.graph.predictOPs) < self.graph.maxNumNodes[1]-1:
+            if (mutateType == 0 or len(self.graph.predictOPs) <= 1) and 0 <= len(self.graph.predictOPs) < self.graph.maxNumNodes[1] and len(self.graph.nodes) < sum(self.graph.maxNumNodes) - 1:
                 newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,min(6, sum(self.graph.maxNumNodes) - len(self.graph.nodes))), replace = False)
                 ret = None
                 #Add Operations have 'key' as Output
@@ -704,7 +704,7 @@ class Alpha():
             
             #prob% mutating update by adding Operands
             #add operands
-            if (mutateType == 0 or len(self.graph.updateOPs) <= 1) and 0 <= len(self.graph.updateOPs) < self.graph.maxNumNodes[2]-1:
+            if (mutateType == 0 or len(self.graph.updateOPs) <= 1) and 0 <= len(self.graph.updateOPs) < self.graph.maxNumNodes[2] and len(self.graph.nodes) < sum(self.graph.maxNumNodes) - 1:
                 newNodes = np.random.choice([Scalar(), Scalar(), Scalar(), Vector(), Matrix()], size = np.random.randint(1,min(6, sum(self.graph.maxNumNodes) - len(self.graph.nodes))), replace = False)
                 ret = None
                 for new in newNodes:
