@@ -47,13 +47,13 @@ def backtest(returns: np.ndarray, Prediction: np.ndarray, show: bool = True, pct
         Prediction = pd.DataFrame(Prediction)
         
         #number of long symbols and short symbols
-        noLongShort = 1 #int(np.ceil(noSymbol * pctLongShort))
+        noLongShort = int(np.ceil(noSymbol * pctLongShort))
         
         #weigths of each long/short symbol
         weights = 1/noLongShort
         
         #convert predict returns to ranking array
-        #Prediction = Prediction.rank(pct = True, axis = 1)
+        Prediction = Prediction.rank(pct = True, axis = 1)
         
         #define assign weights function
         def assignWeight(row):
@@ -75,7 +75,8 @@ def backtest(returns: np.ndarray, Prediction: np.ndarray, show: bool = True, pct
             return row
         
         #apply assignWeight to each row of prediction
-        Weights = pd.DataFrame(np.sign(Prediction)) #Prediction.apply(assignWeight, axis = 1)
+        Weights = Prediction.apply(assignWeight, axis = 1)
+        #Weights = pd.DataFrame(np.sign(Prediction))
         Weights = Weights.divide(np.abs(Weights).sum(axis=1), axis = 0)
         ultilization = np.abs(np.sign(Weights)).sum(axis=0)
         returnDetails = (Weights * returns).sum(axis = 0)

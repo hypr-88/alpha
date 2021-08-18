@@ -592,7 +592,7 @@ class AlphaEvolve():
         self.validLength = round(self.dataLength * self.validRatio)
         
         #initiate 1st population
-        self.initiatePopulation()
+        #self.initiatePopulation()
         self.runFirstPopulation()
         self.summaryBestFit()
         self.cont()
@@ -610,7 +610,7 @@ class AlphaEvolve():
                 for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues, testScore, ultilization, returnDetails, returns, Prediction in pool.imap(self.parallelNewMutate, newMutate):
                     if fingerPrint in self.fitnessScore:
                         pass
-                    elif (fitnessScore > -1) and alpha.checkS1ConnectsM0_Predict() and np.corrcoef(dailyReturns, self.bestFit[2])[0,1] < 0.9:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
+                    elif (fitnessScore > -1) and alpha.checkS1ConnectsM0_Predict():# and np.corrcoef(dailyReturns, self.bestFit[2])[0,1] < 0.9:  # fitnessScore = -1 implies s1 does not connect to m0 (we set this value in method evaluate()) -> do not add to population
                         validAlpha.append(
                             [alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues, testScore, ultilization, returnDetails, returns, Prediction])
                         self.allAlphaInformation.append([alpha, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues, testScore, ultilization, returnDetails, returns, Prediction])
@@ -690,8 +690,8 @@ class AlphaEvolve():
         None.
 
         '''
-        #main_curr = ['ADA', 'BCH', 'BNB', 'BTC', 'DASH', 'EOS', 'ETH', 'LTC', 'NEO', 'TRX', 'XEM', 'XLM', 'XMR', 'XRP', 'ZEC', 'USDS']
-        main_curr = ['BTC', 'EOS', 'ETH', 'LTC']
+        main_curr = ['ADA', 'BCH', 'BNB', 'BTC', 'DASH', 'EOS', 'ETH', 'LTC', 'NEO', 'TRX', 'XEM', 'XLM', 'XMR', 'XRP', 'ZEC', 'USDS']
+        #main_curr = ['BTC', 'EOS', 'ETH', 'LTC']
         main_pairs = [pair+'USDT' for pair in main_curr]
         self.data = {}
         with ZipFile(self.file, "r") as zip_ref:
@@ -730,8 +730,8 @@ class AlphaEvolve():
                     new_df.dropna(inplace = True)
                     
                     #filter data have start date before 2020 and end date on 2021-5-31
-                    if new_df.index[-1] == datetime(2021, 5, 31) and new_df.index[0] < datetime(2019, 1, 1):
-                        self.data[symbol] = new_df
+                    if new_df.index[-1] >= datetime(2021, 5, 31) and new_df.index[0] < datetime(2021, 1, 1):
+                        self.data[symbol] = new_df.iloc[-10000:]
         
         self.symbolList = list(self.data.keys())
         #get intersection trading date of all symbols
@@ -814,7 +814,7 @@ class AlphaEvolve():
         tuple
             X, y
 
-        '''
+        ''''''
         if i<self.window:
             return None
         else:
@@ -832,6 +832,19 @@ class AlphaEvolve():
             y = transform_label[-1,0]
             assert X.shape == (self.window, len(self.featuresList))
             assert y.shape == ()
+            return np.array(X, dtype = np.float64), np.array(y, dtype = np.float64)'''
+        
+        
+        if i<self.window:
+            return None
+        else:
+            X = self.data[symbol].iloc[:i,:]
+            #normalize
+            for col in self.featuresList:
+                X[col] /= X[col].max(skipna = True)
+            
+            X = X.iloc[-self.window:]
+            y = self.data[symbol]['close_return'].iloc[i]
             return np.array(X, dtype = np.float64), np.array(y, dtype = np.float64)
 
     def initiatePopulation(self):
@@ -843,7 +856,7 @@ class AlphaEvolve():
         None.
 
         '''
-        for i in range(self.populationLength):
+        for i in range(self.populationLength - len(self.population.copy())):
             '''
             while True:
                 try:
@@ -877,13 +890,14 @@ class AlphaEvolve():
         None.
         '''
         while True:
+            count = len(self.population)
+            self.initiatePopulation()
             try:
                 self.bestFit = [None, -1000, 0, 0, 0, {}]
                 ctx = multiprocessing.get_context('spawn')
                 pool = ctx.Pool()
-                count = 0
                 for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues in \
-                        pool.imap(self.parallelPopulation, self.population[:self.populationLength]):
+                        pool.imap(self.parallelPopulation, self.population[:len(self.population)]):
         
                     if alpha.fingerprint() in self.fitnessScore:
                         pass
@@ -901,8 +915,7 @@ class AlphaEvolve():
                 pool.join()
                 break
             except ValueError:
-                self.population = []
-                self.initiatePopulation()
+                self.population = self.population[:count]
                 continue
     
     def evaluate(self):
@@ -1043,10 +1056,12 @@ class AlphaEvolve():
             self.predict()
             self.addS0(i)
             assert len(self.OperandsValues['s1']) == len(self.OperandsValues['s0']) == len(self.symbolList)
-            #fitnessScore.append(np.corrcoef(self.OperandsValues['s1'].copy(), self.OperandsValues['s0'].copy())[0,1])
-            validPrediction.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s1'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])#self.OperandsValues['s1'].copy())
-            validActual.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s0'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])#self.OperandsValues['s0'].copy())
-            fitnessScore.append(np.corrcoef(validPrediction[-1].copy(), validActual[-1].copy())[0,1])
+            fitnessScore.append(np.corrcoef(self.OperandsValues['s1'].copy(), self.OperandsValues['s0'].copy())[0,1])
+            validPrediction.append(self.OperandsValues['s1'].copy())
+            validActual.append(self.OperandsValues['s0'].copy())
+            #validPrediction.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s1'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])
+            #validActual.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s0'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])
+            #fitnessScore.append(np.corrcoef(validPrediction[-1].copy(), validActual[-1].copy())[0,1])
         fitnessScore = sum(fitnessScore)/len(fitnessScore)#/np.std(fitnessScore)
         #if fitness score is nan -> s1 is constance -> set fitness score to the lowest value possible
         if np.isnan(fitnessScore): fitnessScore = -1
@@ -1079,10 +1094,12 @@ class AlphaEvolve():
             self.predict()
             self.addS0(i)
             assert len(self.OperandsValues['s1']) == len(self.OperandsValues['s0']) == len(self.symbolList)
-            #testScore.append(np.corrcoef(self.OperandsValues['s1'].copy(), self.OperandsValues['s0'].copy())[0,1])
-            testPrediction.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s1'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])#self.OperandsValues['s1'].copy())
-            testActual.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s0'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])#self.OperandsValues['s0'].copy())
-            testScore.append(np.corrcoef(testPrediction[-1].copy(), testActual[-1].copy())[0,1])
+            testScore.append(np.corrcoef(self.OperandsValues['s1'].copy(), self.OperandsValues['s0'].copy())[0,1])
+            testPrediction.append(self.OperandsValues['s1'].copy())
+            testActual.append(self.OperandsValues['s0'].copy())
+            #testPrediction.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s1'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])
+            #testActual.append([copy.deepcopy(self.scaler[symbol][1]).inverse_transform(np.array(self.OperandsValues['s0'].copy()[j]).reshape(-1,1))[-1,0] for j,symbol in enumerate(self.symbolList)])
+            #testScore.append(np.corrcoef(testPrediction[-1].copy(), testActual[-1].copy())[0,1])
         testScore = sum(testScore)/len(testScore)#/np.std(testScore)
         #if test score is nan -> s1 is constance -> set test score to the lowest value possible
         if np.isnan(testScore): testScore = -1

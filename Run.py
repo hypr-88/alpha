@@ -22,7 +22,7 @@ if __name__ == '__main__':
     a.addNodes(Scalar(1))
     a.addSetupOPs(0, 's2', 56, [1])
     a.addPredictOPs(0, 's1', 3, ['s0', 's2'])
-    x = AlphaEvolve(graph = a, name = '4symbols_005', mutateProb = 0.9, population = 50, tournament = 10, window = 30, 
-                    numNewAlphaPerMutation = 15, trainRatio = 0.7, validRatio = 0.15, TimeBudget = (2, 0, 0, 0), 
-                    maxNumNodes = (50, 200, 250), maxLenShapeNode = 50, addProb = 0.5, delProb = 0.1, changeProb = 0.5, frequency = '1D')
+    x = AlphaEvolve(graph = a, name = '15symbols_001', mutateProb = 0.9, population = 400, tournament = 100, window = 30, 
+                    numNewAlphaPerMutation = 25, trainRatio = 0.6, validRatio = 0.2, TimeBudget = (5, 0, 0, 0), 
+                    maxNumNodes = (50, 250, 250), maxLenShapeNode = 50, addProb = 0.3, delProb = 0.2, changeProb = 0.5, frequency = '20min')
     x.run()
