@@ -212,7 +212,7 @@ class AlphaEvolve():
     '''
     def __init__(self, name = 'abc', mutateProb = 0.9, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 3,
                  trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxNumNodes: tuple = (50, 200, 250), maxLenShapeNode: int = 30,
-                 file: str = "may_premium_dataset_USDT.zip", addProb: float = 0.4, delProb: float = 0.3, changeProb: float = 0.3):
+                 file: str = "may_premium_dataset_USDT.zip", addProb: float = 0.4, delProb: float = 0.3, changeProb: float = 0.3, num_of_observ: int = 4000):
         '''
         Method used to initiate AlphaEvolve
 
@@ -250,7 +250,7 @@ class AlphaEvolve():
         
         self.frequency = frequency
         self.file = file
-        
+        self.num_of_observ = num_of_observ
         
         self.populationLength = population
         self.tournamentLength = tournament
@@ -397,7 +397,7 @@ class AlphaEvolve():
     def createNewMutate(self):
         self.pickTournament()
         bestFit_1, alpha_1 = self.getBestFit(self.tournament)
-        #bestFit_2, alpha_2 = self.getBestFit([alpha for alpha in self.tournament if alpha != alpha_1])
+        bestFit_2, alpha_2 = self.getBestFit([alpha for alpha in self.tournament if alpha != alpha_1])
         newMutate = []
         summary = {'setup': {'prob': {'add': [], 'del': [], 'change': []}, 
                           'actual': {'add': 0, 'del': 0, 'change': 0}}, 
@@ -409,13 +409,13 @@ class AlphaEvolve():
             cnt = 0
             while True:
                 try:
-                    #if bestFit_2 <= 0:
-                    #    newAlpha = copy.deepcopy(alpha_1)
-                    #elif np.random.binomial(1, bestFit_1/(bestFit_1 + bestFit_2)):
-                    #    newAlpha = self.combineAlphas(alpha_1, alpha_2)
-                    #else:
-                    #    newAlpha = copy.deepcopy(alpha_1)
-                    newAlpha = copy.deepcopy(alpha_1)
+                    if bestFit_2 <= 0:
+                        newAlpha = copy.deepcopy(alpha_1)
+                    elif np.random.binomial(1, bestFit_1/(bestFit_1 + bestFit_2)):
+                        newAlpha = self.combineAlphas(alpha_1, alpha_2)
+                    else:
+                        newAlpha = copy.deepcopy(alpha_1)
+                    #newAlpha = copy.deepcopy(alpha_1)
                     mutateSummary = newAlpha.mutate()
                     cnt += 1
                     if not newAlpha.checkS1ConnectsM0_Predict() and cnt < 100:
@@ -596,6 +596,7 @@ class AlphaEvolve():
         self.runFirstPopulation()
         self.summaryBestFit()
         self.cont()
+        self.last_check()
         
     def cont(self):
         cnt = 0
@@ -728,10 +729,10 @@ class AlphaEvolve():
             
                     #drop nan
                     new_df.dropna(inplace = True)
-                    
+                    num_of_observ = min(self.num_of_observ, len(new_df))
                     #filter data have start date before 2020 and end date on 2021-5-31
                     if new_df.index[-1] >= datetime(2021, 5, 31) and new_df.index[0] < datetime(2021, 1, 1):
-                        self.data[symbol] = new_df.iloc[-10000:]
+                        self.data[symbol] = new_df.iloc[-num_of_observ:]
         
         self.symbolList = list(self.data.keys())
         #get intersection trading date of all symbols
@@ -841,7 +842,7 @@ class AlphaEvolve():
             X = self.data[symbol].iloc[:i,:]
             #normalize
             for col in self.featuresList:
-                X[col] /= X[col].max(skipna = True)
+                X.loc[:,col] /= X.loc[:,col].max(skipna = True)
             
             X = X.iloc[-self.window:]
             y = self.data[symbol]['close_return'].iloc[i]
@@ -965,6 +966,78 @@ class AlphaEvolve():
         self.kAlphas = {self.symbolList[0]: self.currAlpha}
         for symbol in self.symbolList[1:]:
             self.kAlphas[symbol] = copy.deepcopy(self.currAlpha)
+            
+    def reconstruct_kAlpha(self):
+        self.replicateAlpha()
+        for i, symbol in enumerate(self.symbolList):
+            for node, valueList in self.OperandsValues.items():
+                self.kAlphas[symbol].graph.nodes[node].updateValue(valueList[i])
+                
+    def last_check(self):
+        self.currAlpha = self.bestFit[0]
+        self.OperandsValues = self.bestFit[5]
+        self.replicateAlpha()
+        self.reconstruct_kAlpha()
+        
+        self.import_6_7_data('june_free_dataset.zip')
+        self.preparedData()
+        testScore, testPrediction, testActual = self.test_last_check()
+        backtest(testActual, testPrediction, True)
+        
+        self.import_6_7_data('july_free_dataset.zip')
+        self.preparedData()
+        testScore, testPrediction, testActual = self.test_last_check()
+        backtest(testActual, testPrediction, True)
+    
+    def import_6_7_data(self, file):
+        main_curr = ['ADA', 'BCH', 'BNB', 'BTC', 'DASH', 'EOS', 'ETH', 'LTC', 'NEO', 'TRX', 'XEM', 'XLM', 'XMR', 'XRP', 'ZEC', 'USDS']
+        #main_curr = ['BTC', 'EOS', 'ETH', 'LTC']
+        main_pairs = [pair+'USDT' for pair in main_curr]
+        self.data = {}
+        with ZipFile(file, "r") as zip_ref:
+            # Get list of files names in zip
+            #list_of_files = zip_ref.namelist()
+           
+            # Iterate over the list of file names in given list
+            #for elem in list_of_files:
+                #get the symbol
+                #symbol = os.path.splitext(elem)[0]
+            for symbol in main_pairs:
+                #read csv
+                with zip_ref.open(symbol+'.csv') as f:
+                    df = pd.read_csv(f)
+                    
+                    #drop columns
+                    df.drop(columns = ['Unnamed: 0', 'close_time', 'number_trades', 'asset'], inplace = True)
+                    
+                    #rename the rest columns
+                    df.columns = ['time', 'open', 'high', 'low', 'close', 'volume']
+                    #change time: str -> datetime
+                    df['time'] = pd.to_datetime(df['time'])
+                    
+                    #grouped data to with frequency
+                    new_df = pd.DataFrame()
+                    new_df['open'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['open'].first()
+                    new_df['high'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['high'].max()
+                    new_df['low'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['low'].min()
+                    new_df['close'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['close'].last()
+                    new_df['volume'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['volume'].sum()
+                    
+                    df['vol x close'] = df['close']*df['volume']
+                    new_df['VWAP'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['vol x close'].sum()/new_df['volume']
+            
+                    #drop nan
+                    new_df.dropna(inplace = True)
+                    self.data[symbol] = new_df
+                    
+        self.symbolList = list(self.data.keys())
+        #get intersection trading date of all symbols
+        idx = list(self.data.values())[0].index
+        for symbol, df in self.data.items():
+            idx = idx.intersection(df.index)
+        
+        for symbol, df in self.data.items():
+            self.data[symbol] = df.loc[idx]
         
     def resetOperandsValues(self):
         '''
@@ -1053,6 +1126,7 @@ class AlphaEvolve():
         for i in range(self.trainLength, self.trainLength + self.validLength):
             #self.currAlpha.graph.show()
             self.addM0(i)
+            self.setup()
             self.predict()
             self.addS0(i)
             assert len(self.OperandsValues['s1']) == len(self.OperandsValues['s0']) == len(self.symbolList)
@@ -1091,6 +1165,7 @@ class AlphaEvolve():
         for i in range(self.trainLength + self.validLength, self.dataLength - 1):
             #self.currAlpha.graph.show()
             self.addM0(i)
+            self.setup()
             self.predict()
             self.addS0(i)
             assert len(self.OperandsValues['s1']) == len(self.OperandsValues['s0']) == len(self.symbolList)
@@ -1110,6 +1185,33 @@ class AlphaEvolve():
             MIScore = sum(MIScore)/len(MIScore)
         except: MIScore = 0
         
+        return  testScore, np.array(testPrediction, dtype = np.float64), np.array(testActual, dtype = np.float64)
+    
+    def test_last_check(self):
+        '''
+        evaluate and predict the current alpha using test data
+
+        Returns
+        -------
+        tuple
+            test score, prediction, actual.
+
+        '''
+        testScore = []
+        testPrediction = []
+        testActual = []
+        for i in range(self.window, len(self.data['BTCUSDT']) - 1):
+            #self.currAlpha.graph.show()
+            self.addM0(i)
+            self.setup()
+            self.predict()
+            self.addS0(i)
+            assert len(self.OperandsValues['s1']) == len(self.OperandsValues['s0']) == len(self.symbolList)
+            testScore.append(np.corrcoef(self.OperandsValues['s1'].copy(), self.OperandsValues['s0'].copy())[0,1])
+            testPrediction.append(self.OperandsValues['s1'].copy())
+            testActual.append(self.OperandsValues['s0'].copy())
+        testScore = sum(testScore)/len(testScore)
+        if np.isnan(testScore): testScore = -1
         return  testScore, np.array(testPrediction, dtype = np.float64), np.array(testActual, dtype = np.float64)
     
     def setup(self):
@@ -1307,7 +1409,7 @@ class AlphaEvolve():
                     operation[i] = float(element)
         
         # post API
-        url = 'http://54.199.171.116/api/alpha'
+        url = 'http://13.113.253.201/api/alpha'
 
         headers = {'Token': 'q0hcdABLUhGAzW3j',
                 'Content-Type': 'application/json'}
