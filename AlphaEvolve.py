@@ -990,9 +990,6 @@ class AlphaEvolve():
         backtest(testActual, testPrediction, True)
     
     def import_6_7_data(self, file):
-        main_curr = ['ADA', 'BCH', 'BNB', 'BTC', 'DASH', 'EOS', 'ETH', 'LTC', 'NEO', 'TRX', 'XEM', 'XLM', 'XMR', 'XRP', 'ZEC', 'USDS']
-        #main_curr = ['BTC', 'EOS', 'ETH', 'LTC']
-        main_pairs = [pair+'USDT' for pair in main_curr]
         self.data = {}
         with ZipFile(file, "r") as zip_ref:
             # Get list of files names in zip
@@ -1002,7 +999,7 @@ class AlphaEvolve():
             #for elem in list_of_files:
                 #get the symbol
                 #symbol = os.path.splitext(elem)[0]
-            for symbol in main_pairs:
+            for symbol in self.symbolList:
                 #read csv
                 with zip_ref.open(symbol+'.csv') as f:
                     df = pd.read_csv(f)
@@ -1030,7 +1027,6 @@ class AlphaEvolve():
                     new_df.dropna(inplace = True)
                     self.data[symbol] = new_df
                     
-        self.symbolList = list(self.data.keys())
         #get intersection trading date of all symbols
         idx = list(self.data.values())[0].index
         for symbol, df in self.data.items():
