@@ -23,6 +23,7 @@ import os
 import requests
 import json
 np.seterr(all="ignore") 
+pd.options.mode.chained_assignment = None
 class AlphaEvolve():
     '''
     Main class to run alpha evolve
@@ -211,8 +212,8 @@ class AlphaEvolve():
         run the alpha evolve
     '''
     def __init__(self, name = 'abc', mutateProb = 0.9, graph: Graph = None, population: int = 25, tournament: int = 10, window: int = 20, numNewAlphaPerMutation: int = 3,
-                 trainRatio: float = 0.8, validRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxNumNodes: tuple = (50, 200, 250), maxLenShapeNode: int = 30,
-                 file: str = "may_premium_dataset_USDT.zip", addProb: float = 0.4, delProb: float = 0.3, changeProb: float = 0.3, num_of_observ: int = 4000):
+                 trainRatio: float = 0.3, validRatio: float = 0.1, testRatio: float = 0.1, TimeBudget: tuple = (1, 0, 0, 0), frequency: str = '1D', maxNumNodes: tuple = (50, 200, 250), maxLenShapeNode: int = 30,
+                 file: str = "Binance_30m_spot_Full.zip", addProb: float = 0.4, delProb: float = 0.3, changeProb: float = 0.3, num_of_observ: int = 8000, pctLongShort: float = 0.3):
         '''
         Method used to initiate AlphaEvolve
 
@@ -256,9 +257,11 @@ class AlphaEvolve():
         self.tournamentLength = tournament
         self.window = window
         self.numNewAlphaPerMutation = numNewAlphaPerMutation
+        self.pctLongShort = pctLongShort
         
         self.trainRatio = trainRatio
         self.validRatio = validRatio
+        self.testRatio = testRatio
         
         self.addProb = addProb
         self.delProb = delProb
@@ -590,6 +593,7 @@ class AlphaEvolve():
         self.preparedData()
         self.trainLength = round(self.dataLength * self.trainRatio)
         self.validLength = round(self.dataLength * self.validRatio)
+        self.testLength = round(self.dataLength * self.testRatio)
         
         #initiate 1st population
         #self.initiatePopulation()
@@ -678,7 +682,7 @@ class AlphaEvolve():
             #self.summaryBestFit()
             
             cnt+=1
-            if cnt%20 == 0:
+            if cnt%10 == 0:
                 self.save_and_plot()
         self.extractAlpha(self.name)
         
@@ -692,24 +696,27 @@ class AlphaEvolve():
 
         '''
         main_curr = ['ADA', 'BCH', 'BNB', 'BTC', 'DASH', 'EOS', 'ETH', 'LTC', 'NEO', 'TRX', 'XEM', 'XLM', 'XMR', 'XRP', 'ZEC', 'USDS']
-        #main_curr = ['BTC', 'EOS', 'ETH', 'LTC']
         main_pairs = [pair+'USDT' for pair in main_curr]
         self.data = {}
         with ZipFile(self.file, "r") as zip_ref:
             # Get list of files names in zip
-            #list_of_files = zip_ref.namelist()
+            list_of_files = zip_ref.namelist()
            
             # Iterate over the list of file names in given list
-            #for elem in list_of_files:
+            for elem in list_of_files:
                 #get the symbol
-                #symbol = os.path.splitext(elem)[0]
-            for symbol in main_pairs:
+                file = os.path.splitext(elem)[0]
+                symbol = file.split('-')[0]
+                if symbol not in main_pairs:
+                    continue
+            #for symbol in main_pairs:
                 #read csv
-                with zip_ref.open(symbol+'.csv') as f:
+                with zip_ref.open(file+'.csv') as f:
                     df = pd.read_csv(f)
                     
                     #drop columns
-                    df.drop(columns = ['Unnamed: 0', 'close_time', 'number_trades', 'asset'], inplace = True)
+                    df.drop(columns = ['stock_code', 'money', 'factor', 'change', 'TradeCount', 
+                                       'TakerBuyBaseVolume', 'TakerBuyQuoteVolume'], inplace = True)
                     
                     #rename the rest columns
                     df.columns = ['time', 'open', 'high', 'low', 'close', 'volume']
@@ -731,7 +738,7 @@ class AlphaEvolve():
                     new_df.dropna(inplace = True)
                     num_of_observ = min(self.num_of_observ, len(new_df))
                     #filter data have start date before 2020 and end date on 2021-5-31
-                    if new_df.index[-1] >= datetime(2021, 5, 31) and new_df.index[0] < datetime(2021, 1, 1):
+                    if new_df.index[-1] >= datetime(2021, 9, 9) and new_df.index[0] <= datetime(2021, 1, 1):
                         self.data[symbol] = new_df.iloc[-num_of_observ:]
         
         self.symbolList = list(self.data.keys())
@@ -742,7 +749,7 @@ class AlphaEvolve():
         
         for symbol, df in self.data.items():
             self.data[symbol] = df.loc[idx]
-            print('success', symbol)
+            print(symbol)
         
     def preparedData(self):
         '''
@@ -898,7 +905,7 @@ class AlphaEvolve():
                 ctx = multiprocessing.get_context('spawn')
                 pool = ctx.Pool()
                 for alpha, fingerPrint, fitnessScore, dailyReturns, annualizedReturns, sharpe, OperandsValues in \
-                        pool.imap(self.parallelPopulation, self.population[:len(self.population)]):
+                    pool.imap(self.parallelPopulation, self.population[:len(self.population)]):
         
                     if alpha.fingerprint() in self.fitnessScore:
                         pass
@@ -979,61 +986,9 @@ class AlphaEvolve():
         self.replicateAlpha()
         self.reconstruct_kAlpha()
         
-        self.import_6_7_data('june_free_dataset.zip')
-        self.preparedData()
         testScore, testPrediction, testActual = self.test_last_check()
-        backtest(testActual, testPrediction, True)
-        
-        self.import_6_7_data('july_free_dataset.zip')
-        self.preparedData()
-        testScore, testPrediction, testActual = self.test_last_check()
-        backtest(testActual, testPrediction, True)
+        backtest(testActual, testPrediction, True, pctLongShort = self.pctLongShort)
     
-    def import_6_7_data(self, file):
-        self.data = {}
-        with ZipFile(file, "r") as zip_ref:
-            # Get list of files names in zip
-            #list_of_files = zip_ref.namelist()
-           
-            # Iterate over the list of file names in given list
-            #for elem in list_of_files:
-                #get the symbol
-                #symbol = os.path.splitext(elem)[0]
-            for symbol in self.symbolList:
-                #read csv
-                with zip_ref.open(symbol+'.csv') as f:
-                    df = pd.read_csv(f)
-                    
-                    #drop columns
-                    df.drop(columns = ['Unnamed: 0', 'close_time', 'number_trades', 'asset'], inplace = True)
-                    
-                    #rename the rest columns
-                    df.columns = ['time', 'open', 'high', 'low', 'close', 'volume']
-                    #change time: str -> datetime
-                    df['time'] = pd.to_datetime(df['time'])
-                    
-                    #grouped data to with frequency
-                    new_df = pd.DataFrame()
-                    new_df['open'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['open'].first()
-                    new_df['high'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['high'].max()
-                    new_df['low'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['low'].min()
-                    new_df['close'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['close'].last()
-                    new_df['volume'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['volume'].sum()
-                    
-                    df['vol x close'] = df['close']*df['volume']
-                    new_df['VWAP'] = df.groupby(pd.Grouper(key = 'time', freq = self.frequency))['vol x close'].sum()/new_df['volume']
-            
-                    #drop nan
-                    new_df.dropna(inplace = True)
-                    self.data[symbol] = new_df
-                    
-        #get intersection trading date of all symbols
-        idx = list(self.data.values())[0].index
-        for symbol, df in self.data.items():
-            idx = idx.intersection(df.index)
-        
-        for symbol, df in self.data.items():
-            self.data[symbol] = df.loc[idx]
         
     def resetOperandsValues(self):
         '''
@@ -1097,7 +1052,7 @@ class AlphaEvolve():
         None.
 
         '''
-        for i in range(self.window, self.trainLength):
+        for i in list(np.random.choice(range(self.window, self.trainLength), size = (self.trainLength - self.window), replace= False)):
             #self.currAlpha.graph.show()
             self.addM0(i)
             self.setup()
@@ -1158,7 +1113,7 @@ class AlphaEvolve():
         MIScore = []
         testPrediction = []
         testActual = []
-        for i in range(self.trainLength + self.validLength, self.dataLength - 1):
+        for i in range(self.trainLength + self.validLength, self.trainLength + self.validLength + self.testLength):
             #self.currAlpha.graph.show()
             self.addM0(i)
             self.setup()
@@ -1196,7 +1151,7 @@ class AlphaEvolve():
         testScore = []
         testPrediction = []
         testActual = []
-        for i in range(self.window, len(self.data['BTCUSDT']) - 1):
+        for i in range(self.trainLength + self.validLength + self.testLength, self.dataLength - 1):
             #self.currAlpha.graph.show()
             self.addM0(i)
             self.setup()
@@ -1329,18 +1284,18 @@ class AlphaEvolve():
                 Prediction[:, i] = scaler_label.inverse_transform(np.array(testPrediction[:, i]).reshape(-1, 1)).reshape(testPrediction.shape[0],)
             except:
                 Prediction = testPrediction'''
-        for i, symbol in enumerate(self.symbolList):
+        #for i, symbol in enumerate(self.symbolList):
             #check invert transform correct or not
-            assert (testActual[:, i] - np.array(self.data[symbol]['close_return'].iloc[self.trainLength + self.validLength:self.dataLength-1]).reshape(testActual.shape[0],) < 0.00001).all()
+            #assert (testActual[:, i] - np.array(self.data[symbol]['close_return'].iloc[self.trainLength + self.validLength:self.dataLength-1]).reshape(testActual.shape[0],) < 0.00001).all()
         if show:
             print('========================================')
             self.currAlpha.graph.show()
             print('VALIDATION FITNESS:', fitnessScore)
             print('TEST FITNESS      :', testScore)
-            dailyReturns, annualizedReturns, sharpe, ultilization, returnDetails = backtest(testActual, testPrediction, show)
+            dailyReturns, annualizedReturns, sharpe, ultilization, returnDetails = backtest(testActual, testPrediction, show, self.pctLongShort)
             print('========================================')
         else:
-            dailyReturns, annualizedReturns, sharpe, ultilization, returnDetails = backtest(testActual, testPrediction, show)
+            dailyReturns, annualizedReturns, sharpe, ultilization, returnDetails = backtest(testActual, testPrediction, show, self.pctLongShort)
         return fitnessScore, dailyReturns, annualizedReturns, sharpe, testScore, ultilization, returnDetails, validActual, validPrediction
     
     def summaryBestFit(self):

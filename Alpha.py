@@ -1091,6 +1091,48 @@ class Alpha():
         elif setup == 'change':
             mutateSummary['setup']['actual']['change'] += 1
         
+        
+        addProb = self.mutateProb*self._updateAddOperandProb()
+        delProb = self.mutateProb*(1-self._updateAddOperandProb())
+        changeProb = self.mutateProb*self._updateAddOperandProb()*(1-self._updateAddOperandProb())
+        mutateSummary['update']['prob']['add'].append(addProb)
+        mutateSummary['update']['prob']['del'].append(delProb)
+        mutateSummary['update']['prob']['change'].append(changeProb)
+        update = self.mutate_update()
+        if update is None: 
+            pass
+        elif update == 'add':
+            mutateSummary['update']['actual']['add'] += 1
+        elif update == 'del':
+            mutateSummary['update']['actual']['del'] += 1
+        elif update == 'change':
+            mutateSummary['update']['actual']['change'] += 1
+        # make sure update steps includes s0 and s1
+        cnt = 0
+        while (not self.checkOperandsConnectS0S1_Update()) and cnt < 100:
+            addProb = self.mutateProb*self._updateAddOperandProb()
+            delProb = self.mutateProb*(1-self._updateAddOperandProb())
+            changeProb = self.mutateProb*self._updateAddOperandProb()*(1-self._updateAddOperandProb())
+            mutateSummary['update']['prob']['add'].append(addProb)
+            mutateSummary['update']['prob']['del'].append(delProb)
+            mutateSummary['update']['prob']['change'].append(changeProb)
+            update = self.mutate_update()
+            if update is None: 
+                pass
+            elif update == 'add':
+                mutateSummary['update']['actual']['add'] += 1
+            elif update == 'del':
+                mutateSummary['update']['actual']['del'] += 1
+            elif update == 'change':
+                mutateSummary['update']['actual']['change'] += 1
+            cnt += 1
+            if cnt >= 100:
+                key = self.graph.addNodes(Scalar(0))
+                self.graph.addUpdateOPs(len(self.graph.updateOPs), key, 2, ['s0', 's1'])
+                break
+            
+            
+            
         addProb = self.mutateProb*self._updateAddOperandProb()
         delProb = self.mutateProb*(1-self._updateAddOperandProb())
         changeProb = self.mutateProb*self._updateAddOperandProb()*(1-self._updateAddOperandProb())
@@ -1170,7 +1212,7 @@ class Alpha():
                 key = self.graph.addNodes(Scalar(0))
                 self.graph.addUpdateOPs(len(self.graph.updateOPs), key, 2, ['s0', 's1'])
                 break'''
-            
+        
         self.fillUndefinedOperands()
         #print('mutate done')
         
